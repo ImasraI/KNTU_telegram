@@ -16,7 +16,7 @@ import { roleOf, visibleAccounts, approveContributor, revokeContributor, healthS
 import { notifyOnce } from '../lib/notify.js';
 import { noticeKey } from '../lib/notice-policy.js';
 import { scan, publishDigests, resolveDestination, directorySummary, detectClassInfo } from '../lib/monitor.js';
-import { parseClassCommand, describeBinding, parseCourseCode } from '../lib/classes.js';
+import { parseClassCommand, parseProfCommand, describeBinding, parseCourseCode } from '../lib/classes.js';
 import { setBinding, deleteBinding, setProfessor, deleteProfessor, getBinding, professorMap } from '../lib/directory.js';
 
 const COMMANDS = new Set(['/start', '/help', '/setup', '/check', '/status', '/courses',
@@ -177,25 +177,28 @@ export default async function (message, ctx) {
         current += block;
       }
       chunks.push(current);
-      for (const chunk of chunks.slice(0, 4)) await reply(chunk);
-      return;
+      const limited = chunks.slice(0, 4);
+      for (const chunk of limited.slice(0, -1)) await reply(chunk);
+      // Returning the last message makes a delivery failure visible instead of silent.
+      return await reply(limited.at(-1));
     }
 
     if (command === '/prof') {
-      const code = args[0];
-      if (!code) {
+      const parsed = parseProfCommand(args);
+      if (parsed.action === 'list' || parsed.error) {
         const summary = await directorySummary();
-        if (!summary.professors.length) return await reply('نگاشت استادی ثبت نشده است.\n' + CLASS_HELP);
-        return await reply(['نگاشت کد استاد به نام:',
-          ...summary.professors.slice(0, 100).map(p => `${p.code} — ${p.name}`)].join('\n'));
+        if (parsed.action === 'list' && !summary.professors.length) return await reply('نگاشت استادی ثبت نشده است.\n' + CLASS_HELP);
+        if (parsed.action === 'list') {
+          return await reply(['نگاشت کد استاد به نام:',
+            ...summary.professors.slice(0, 100).map(p => `${p.code} — ${p.name}`)].join('\n'));
+        }
+        return await reply(`ورودی نامعتبر است.\n\n${CLASS_HELP}`);
       }
-      const name = args.slice(1).join(' ').trim();
-      if (!name) return await reply(CLASS_HELP);
-      if (['del', 'delete', 'حذف', '-'].includes(name.toLowerCase())) {
-        const removed = await deleteProfessor(code);
+      if (parsed.action === 'delete') {
+        const removed = await deleteProfessor(parsed.code);
         return await reply(`نگاشت کد ${removed.code} حذف شد.`);
       }
-      const saved = await setProfessor(code, name, fromId);
+      const saved = await setProfessor(parsed.code, parsed.name, fromId);
       return await reply(`ثبت شد: ${saved.code} — ${saved.name}`);
     }
 
@@ -288,16 +291,24 @@ export default async function (message, ctx) {
   }
 
   const rows = await db.select().from(snapshots).all();
+  // The same class identity the group notices carry, so a list entry is attributable.
+  const directory = await directorySummary();
+  const lines = new Map(directory.courses.map(entry => [String(entry.id), entry.line]));
   const matches = rows.flatMap(row => {
     const items = Array.isArray(row.value) ? row.value : [];
-    const course = courses.find(c => String(c.id) === courseIdFromKey(row.key)) ?? { fullname: courseIdFromKey(row.key) };
+    const id = courseIdFromKey(row.key);
+    const course = courses.find(c => String(c.id) === id) ?? { fullname: id };
     return items
       .filter(item => command === '/assignments' ? item.kind === 'assign' : item.kind === 'quiz' || /آزمون|امتحان|میان.?ترم|exam|midterm/i.test(item.name))
-      .map(item => notification(course, { ...item, change: 'updated' }));
+      .map(item => notification(course, { ...item, change: 'updated' }, { classLine: lines.get(String(course.id)) }));
   });
   // This is a list from the last scan, not a fresh scan and not a future-only agenda.
   if (!matches.length) return await reply('No matching activities in the last scan.');
   await reply('Activities from the last scan (may include past deadlines):');
-  for (const text of matches.slice(0, 20)) await reply(text);
+  let delivered = 0;
+  for (const text of matches.slice(0, 20)) if (await reply(text)) delivered++;
   if (matches.length > 20) await reply('Showing the first 20 activities. Open the course site for the full list.');
+  // Handlers' return values are ignored by Telegram; this makes the CLI show what
+  // was actually rendered, including the class line, for verification.
+  return { command, activities: matches.length, delivered, sample: matches[0].slice(0, 400) };
 }

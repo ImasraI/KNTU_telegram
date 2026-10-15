@@ -133,6 +133,21 @@ export function classLine(binding, professors, siteCode = null) {
   return parts.length ? '🏫 ' + parts.join(' — ') : null;
 }
 
+// Parses `/prof [del] <code> [name…]`. The delete keyword comes first, which is easy
+// to get backwards — hence a tested parser rather than inline argument handling.
+export function parseProfCommand(args) {
+  const [first, ...others] = (args ?? []).map(x => String(x));
+  if (!first) return { action: 'list' };
+  const clean = value => normalizeSpaces(toAsciiDigits(value)).slice(0, 60);
+  if (['del', 'delete', 'حذف', '-'].includes(first.toLowerCase())) {
+    const code = clean(others[0] ?? '');
+    return code ? { action: 'delete', code } : { error: 'PROFESSOR_CODE' };
+  }
+  const name = clean(others.join(' '));
+  if (['del', 'delete', 'حذف'].includes(name.toLowerCase())) return { action: 'delete', code: clean(first) };
+  return name ? { action: 'set', code: clean(first), name } : { error: 'PROFESSOR_NAME' };
+}
+
 // Parses `/class <courseId> <sub> <value…>` into a plain instruction.
 export function parseClassCommand(args) {
   const [courseId, sub, ...rest] = (args ?? []).map(x => String(x));

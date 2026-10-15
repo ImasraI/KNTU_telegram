@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCourseCode, deriveLabel, toAsciiDigits, weekdayIndex, parseSlots, formatSlots, classLine, professorFor, professorLabel, describeBinding, parseClassCommand, WEEKDAYS } from '../tgcloud/lib/classes.js';
+import { parseCourseCode, deriveLabel, toAsciiDigits, weekdayIndex, parseSlots, formatSlots, classLine, professorFor, professorLabel, describeBinding, parseClassCommand, parseProfCommand, WEEKDAYS } from '../tgcloud/lib/classes.js';
 import { notification, digest, extractCourseMeta, extractEnrollmentCodes } from '../tgcloud/lib/content.js';
 
 test('the 13-digit course code is read in both orders the university prints it', () => {
@@ -143,4 +143,18 @@ test('an unbound class still names itself once the site code is known', () => {
   // A manual binding wins over the detected code, but both identify the class.
   assert.equal(classLine({ code: '4051-1110274-22', professorName: 'طباطبایی' }, new Map(), '4051-1110274-23'),
     '🏫 کلاس 22 — کد 4051-1110274-22 — استاد طباطبایی');
+});
+
+test('the professor command keeps "del" in front, whichever way it is written', () => {
+  assert.deepEqual(parseProfCommand([]), { action: 'list' });
+  assert.deepEqual(parseProfCommand(['4051', 'استاد طباطبایی']), { action: 'set', code: '4051', name: 'استاد طباطبایی' });
+  assert.deepEqual(parseProfCommand(['۴۰۵۱', 'دکتر', 'رضایی']), { action: 'set', code: '4051', name: 'دکتر رضایی' });
+  assert.deepEqual(parseProfCommand(['del', '4051']), { action: 'delete', code: '4051' });
+  assert.deepEqual(parseProfCommand(['delete', '4051']), { action: 'delete', code: '4051' });
+  assert.deepEqual(parseProfCommand(['حذف', '4051']), { action: 'delete', code: '4051' });
+  assert.deepEqual(parseProfCommand(['4051', 'del']), { action: 'delete', code: '4051' });
+  assert.deepEqual(parseProfCommand(['del']), { error: 'PROFESSOR_CODE' });
+  assert.deepEqual(parseProfCommand(['4051']), { error: 'PROFESSOR_NAME' });
+  // `del` as a name must never be stored as a code→name pair (the live bug).
+  assert.equal(parseProfCommand(['del', '4051']).name, undefined);
 });

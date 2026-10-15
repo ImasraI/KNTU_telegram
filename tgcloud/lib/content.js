@@ -108,12 +108,12 @@ export function extractEnrollmentCodes(html) {
   const found = {};
   for (const link of nodes(doc, n => n.tag === 'a' && /\/course\/view\.php\?id=\d+/.test(n.attrs.href ?? ''))) {
     const id = Number((link.attrs.href.match(/id=(\d+)/) ?? [])[1]);
-    const text = nodeText(link);
-    const parsed = /\d{1,4}\s*-\s*\d{7}\s*-\s*\d{1,4}/.test(text) ? text : null;
-    if (!id || !parsed) continue;
-    const match = toCourseCode(parsed);
-    if (!match) continue;
-    found[id] = { code: match, name: text.replace(/\s*\[?\s*\d[\d\s-]*\]?\s*$/, '').trim().slice(0, 120) };
+    // Normalise digits first: Moodle renders ۴۰۵۱ and JS `\d` matches ASCII only.
+    const ascii = normalizeDigits(nodeText(link));
+    if (!id || !/\d{1,4}\s*-\s*\d{7}\s*-\s*\d{1,4}/.test(ascii)) continue;
+    const code = toCourseCode(ascii);
+    if (!code) continue;
+    found[id] = { code, name: ascii.replace(/\s*\[?\s*\d[\d\s-]*\]?\s*$/, '').trim().slice(0, 120) };
   }
   return found;
 }

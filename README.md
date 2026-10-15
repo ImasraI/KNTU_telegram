@@ -20,6 +20,9 @@ posts new/changed course activities into one chosen group/topic.
   announced again. 0 failures, 0 lost coverage.
 - Destination is still the preserved legacy chat `-5539552606` (main topic). It has
   **not** been changed; the owner binds the new group/topic with `/bind`.
+- Class/professor directory deployed (two more additive tables). Every one of the nine
+  courses' full 13-digit codes was discovered automatically from the site in a single
+  request; professor names were confirmed to be absent from the site (see below).
 - Automatic checks are **not active yet** — the workflow exists, the repository secret
   and the scheduled run are the remaining step (below).
 - 37 local tests pass (`npm test`); they use reduced site markup and mocked API responses,
@@ -48,6 +51,95 @@ posts new/changed course activities into one chosen group/topic.
    The owner can publish its current contents once with `/digest` (or `/digest <courseId>`).
 7. Per-account health, pending digests and the run summary are stored in `settings.status`
    and shown by `/status` and the Mini App.
+
+## Classes, professors and weekly times
+
+**What the site does and does not expose** (checked against the live site on 2026-10-15,
+with the connected session, plus the public pages):
+
+- The **class number is on the site**, as the trailing two digits of the 13-digit code.
+  The enrolled course's own name carries only the group code (`آز فيزيك2 [4051]`), but the
+  **«درس‌های من» sidebar block** — rendered on the dashboard and on every course page — lists
+  each course as `آز فيزيك2 [4051-1110274-23]`, and the public course categories do the same.
+  One page therefore yields a `Moodle course id → full code` map for the whole enrollment,
+  which `/class <id> detect` and the Mini App store as the class's number.
+- The **professor's name is nowhere on the site**: course pages mark no teacher
+  (`teachers: []` on every course), no course contacts are rendered, public listings show
+  only the code, and the only user link on a course page is the logged-in student. That is
+  why the professor comes from this bot's own directory, not from scraping.
+- Codes are printed `<group>-<course>-<section>`, e.g. `4051-1110274-23`; a code read
+  right-to-left (as it appears to the eye in an RTL line) looks like `23-1110274-4051`.
+  The class/section is the field that differs per professor, and `deriveLabel` uses the
+  trailing 2-digit field, falling back to the leading field. Override per course with
+  `/class <id> label <x>` if you prefer a different label.
+
+The nine courses read on 2026-10-15, with the codes the site returned (auto-discovered, so
+nothing here has to be typed):
+
+| Moodle id | Course (site name) | Site code | Class |
+|---|---|---|---|
+| 120 | آز فيزيك2 `[4051]` | 4051-1110274-23 | 23 |
+| 39 | آزمدارهاي الكتريكي و اندازه گيري `[4051]` | 4051-1110242-22 | 22 |
+| 80 | الكترومغناطيس مهندسي `[4051]` | 4051-1110258-12 | 12 |
+| 82 | الكترونيك 1 `[4051]` | 4051-1110259-11 | 11 |
+| 3 | رياضيات مهندسي `[4051]` | 4051-1110001-11 | 11 |
+| 20 | سيستمهاي ديجيتال 1 `[4051]` | 4051-1110239-11 | 11 |
+| 168 | كارگاه برق `[4051]` | 4051-1112034-12 | 12 |
+| 25 | مدارهاي الكتريكي 2 `[4051]` | 4051-1110241-11 | 11 |
+| 861 | مهارتهاي زندگي دانشجويي `[4051]` | 4051-5505050-52 | 52 |
+
+Because one course *name* is taught by many professors in different sections, and a section
+is exactly one Moodle course, the binding is **per course id**: two professors of the same
+course are two separate rows, never merged.
+
+### Binding it
+
+Owner-only, in the bot's private chat:
+
+```
+/classes                          # every covered course: site code, class, professor, times
+/class 120                        # one course: name code, site code, current binding
+/class 120 detect                 # read the course page and record what the site shows
+/class 120 code 4051-1110274-23   # set/override the code (also derives the label)
+/class 120 label 23               # set the class label
+/class 120 prof استاد طباطبایی     # professor name…
+/class 120 prof 4051              # …or a professor code resolved through /prof
+/class 120 slots یک‌شنبه 10:00-11:30، سه‌شنبه 8:00-9:30
+/class 120 clear                  # remove the binding
+/prof 4051 استاد طباطبایی          # professor code → name
+/prof del 4051                    # remove the mapping
+/prof                             # list the mapping
+```
+
+Class times are all-or-nothing: a half-parsed schedule is rejected rather than stored, and
+Persian digits, `تا`/`-` ranges and Persian weekday spellings (with or without ZWNJ) are
+accepted. The Mini App has the same editor under **Classes & professors**, with a
+**بررسی سایت** button per course that shows exactly what the site returned.
+
+The same owner-only rules apply as for accounts: `/class`, `/classes` and `/prof` work only in
+the private chat of the configured owner, and only the endpoint's `list` action is available
+to a regular approved account holder (a student needs to know which class a notice belongs
+to, but must not edit the directory).
+
+### What a notice looks like
+
+Every group notice and digest leads with the class identity, so a student can tell at a
+glance whether the activity is for their class:
+
+```
+مورد جدید — 📝 تکلیف
+🏫 کلاس 22 — کد 4051-1110242-22 — استاد طباطبایی — یکشنبه 10:00-11:30
+آزمدارهاي الكتريكي و اندازه گيري [4051]
+پیش‌گزارش آزمایش اول
+مهلت: سه‌شنبه، 21 مهر 1405، 9:00 صبح
+https://vc.kntu.ac.ir/mod/assign/view.php?id=3570
+```
+
+The class line appears whenever any part is known: the site code alone already names the
+class (`🏫 کلاس 23 — کد 4051-1110274-23`), a professor name is added when bound, and weekly
+times are appended when set. `/assignments` and `/exams` use the same composer, so their
+lists are attributable too. Only course *teaching* information is stored — no grades,
+submissions, attempts or participant lists.
 
 ## Accounts
 
@@ -103,6 +195,9 @@ Only the configured owner may bind it, and only a chat the bot can actually post
 | `/bind` | destination group/topic | owner |
 | `/destination`, `/unbind` | private | owner |
 | `/digest [courseId …]` | private | owner — publish pending initial digests |
+| `/classes` | private | owner — covered courses with class code, professor, weekly times |
+| `/class <courseId> …` | private | owner — bind code/label/professor/slots, `detect`, or `clear` |
+| `/prof <code> <name>` | private | owner — professor code → name (delete with `/prof del <code>`) |
 | `/courses`, `/assignments`, `/exams` | destination group or owner private | anyone in that group |
 
 ## Automatic checks (GitHub Actions)
@@ -166,6 +261,11 @@ cookies are deliberately **not** copied to GitHub: credentials stay in Telegram'
 - Only course teaching information is collected. Grades, submissions, private messages, quiz
   attempts and participant lists are never read or published, and no submission or
   quiz-attempt operation exists in this codebase.
+- Professor names and weekly class times are **entered by the owner**, not scraped: the site
+  does not publish them (verified per course). Auto-detected codes come from the site and are
+  stored as `settings.siteCourseCodes`; a manual `/class … code` binding always wins.
+- Class labels are a display aid derived from the code's trailing field. They do not change
+  course identity, which remains university origin + Moodle course id.
 - Persian text and dates are preserved. Published links are normal university links with any
   `token`/`wstoken`/`sesskey`/`password` query parameter stripped; the reader may still need
   to log in to the university to open them.
