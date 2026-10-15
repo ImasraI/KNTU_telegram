@@ -3,8 +3,8 @@
 The Worker triggers the existing check on Telegram every six hours. The bot,
 database, and university sessions stay on Telegram. It exposes no HTTP trigger.
 
-From `cloudflare/`, run `npx wrangler deploy`, then
-`npx wrangler secret put TGCLOUD_TOKEN`. Enter the BotFather CLI access token
+From the repository root, run `npx wrangler deploy --config cloudflare/wrangler.jsonc`, then
+`npx wrangler secret put TGCLOUD_TOKEN --config cloudflare/wrangler.jsonc`. Enter the BotFather CLI access token
 directly at the hidden prompt. Do not commit tokens or put them in wrangler config.
 The build bundles only `.js` source files from `tgcloud/`, never `.tgcloud/` state.
 
