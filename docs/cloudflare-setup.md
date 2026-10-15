@@ -1,6 +1,6 @@
 # Free Cloudflare scheduler
 
-The Worker triggers the existing check on Telegram every six hours. The bot,
+The Worker triggers the existing check on Telegram every 30 minutes. The bot,
 database, and university sessions stay on Telegram. It exposes no HTTP trigger.
 
 From the repository root, run `npx wrangler deploy --config cloudflare/wrangler.jsonc`, then
@@ -8,8 +8,8 @@ From the repository root, run `npx wrangler deploy --config cloudflare/wrangler.
 directly at the hidden prompt. Do not commit tokens or put them in wrangler config.
 The build bundles only `.js` source files from `tgcloud/`, never `.tgcloud/` state.
 
-Cron: `4 */6 * * *` UTC, or 03:34, 09:34, 15:34, 21:34 Tehran.
-Cloudflare's Free plan has limits; four scheduled invocations per day should be
+Cron: `4,34 * * * *` UTC, at minutes :04 and :34 (also :04 and :34 in Tehran).
+Cloudflare's Free plan has limits; 48 scheduled invocations per day should be
 well within its request allowance. Monitor CPU limits and invocation failures.
 No paid database, domain, or storage is required.
 

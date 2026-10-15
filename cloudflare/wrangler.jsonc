@@ -4,6 +4,6 @@
   "compatibility_date": "2026-10-15",
   "workers_dev": false,
   "build": { "command": "node cloudflare/build.mjs" },
-  "triggers": { "crons": ["4 */6 * * *"] },
+  "triggers": { "crons": ["4,34 * * * *"] },
   "observability": { "enabled": true }
 }
