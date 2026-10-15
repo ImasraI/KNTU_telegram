@@ -1,0 +1,50 @@
+name: Course checks
+
+# Telegram Serverless 0.2 has no timer/cron trigger (checked against
+# https://core.telegram.org/bots/serverless, October 2026), so the bot is scheduled
+# from outside: this workflow calls the deployed check endpoint through the CLI.
+on:
+  workflow_dispatch:
+  schedule:
+    # About every 15 minutes, deliberately away from minute zero because GitHub
+    # queues scheduled runs at high load and may delay them by several minutes.
+    - cron: '4,19,34,49 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  # Two checks must never overlap. A run that arrives while one is going waits.
+  group: course-checks
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run the unit tests
+        run: npm test
+
+      - name: Run the course check on Telegram
+        env:
+          # The app<id>:<secret> CLI token from BotFather → Serverless (NOT the Bot
+          # API token). It can manage this bot's code and database, so it lives only
+          # in repository secrets and never in source, logs or command arguments.
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+          # Must stay equal to OWNER_ID in tgcloud/lib/config.js; the script refuses
+          # to run when they disagree.
+          BOT_OWNER_ID: '747977517'
+        run: node scripts/check.mjs
