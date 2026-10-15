@@ -1,7 +1,7 @@
 {
   "name": "kntu-course-checks",
   "main": "worker.js",
-  "compatibility_date": "2026-10-16",
+  "compatibility_date": "2026-10-15",
   "workers_dev": false,
   "build": { "command": "node cloudflare/build.mjs" },
   "triggers": { "crons": ["4 */6 * * *"] },
