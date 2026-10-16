@@ -152,3 +152,5 @@ Registration now starts an immediate participant lookup after persisting the req
 ## Private participant cache
 
 Complete paginated participant rosters are saved per canonical course key in private settings, retaining only displayed name and Moodle participant ID. They have no automatic expiry; subsequent registration reads the database. Missing course caches are fetched on demand. The owner can run `/refreshparticipants` for every course or `/refreshparticipants 3` for one course; `endpoints/refreshParticipants` is also owner-only and returns counts only. Failed refreshes preserve the previous complete roster. A successful refresh marks coverage for rechecking; existing subscriptions are not automatically removed. Refresh when enrollment changes or a semester begins. Student endpoints never return cached rosters. No schema migration is needed.
+
+Bulk owner refresh is processed in short resumable batches; repeat `/refreshparticipants` when the response reports remaining courses. Progress is saved after every successful or failed course attempt.

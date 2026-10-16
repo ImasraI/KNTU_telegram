@@ -77,7 +77,7 @@ export default async function (message) {
       if (args.length && !/^[1-9]\d*$/.test(args[0])) return await reply('شماره درس را وارد کنید یا برای همهٔ درس‌ها /refreshparticipants را بزنید.');
       await reply('در حال تازه‌سازی فهرست‌های خصوصی شرکت‌کنندگان…');
       const result = await refreshRosters(args[0]);
-      return await reply(`${result.refreshed} فهرست تازه شد؛ ${result.failed} خطا. فهرست قبلی درس‌های ناموفق حفظ شد.`);
+      return await reply(`${result.refreshed} فهرست تازه شد؛ ${result.failed} خطا. فهرست قبلی درس‌های ناموفق حفظ شد.${result.remaining ? ` برای ${result.remaining} درس باقی‌مانده دوباره /refreshparticipants را بزنید.` : ''}`);
     }
     if (command === '/check') {
       const result = await scan({ reason: 'command' });

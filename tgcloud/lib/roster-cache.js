@@ -31,12 +31,19 @@ export function matchRoster(people, queries) {
 
 export async function refreshRosters(courseId) {
   const courses = ((await getSetting('courses')) ?? []).filter(c => courseId === undefined || String(c.id) === String(courseId));
-  let refreshed = 0, failed = 0;
-  for (const course of courses) {
-    try { await courseRoster(course, {force:true}); refreshed++; } catch { failed++; }
+  const start = courseId === undefined ? Math.min(Number(await getSetting('participantRefreshCursor')) || 0, courses.length) : 0;
+  let refreshed = 0, failed = 0, next = start;
+  const began = Date.now();
+  for (; next < courses.length; next++) {
+    if (Date.now() - began > 20000) break;
+    try { await courseRoster(courses[next], {force:true}); refreshed++; } catch { failed++; }
+    // Persist progress after each course in case a university request stalls later.
+    if (courseId === undefined) await putSetting('participantRefreshCursor', next + 1);
   }
+  const remaining = courses.length - next;
+  if (courseId === undefined && !remaining) await putSetting('participantRefreshCursor', 0);
   if (refreshed) await putSetting('coverageRefreshAt', Date.now());
-  return { refreshed, failed };
+  return { refreshed, failed, remaining };
 }
 
 export async function rosterCacheStatus() {
