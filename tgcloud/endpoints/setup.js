@@ -2,6 +2,7 @@ import { EndpointError, fetch } from 'sdk';
 import { connector, failureCode } from '../lib/moodle.js';
 import { connectAccount, redactAccount, roleOf } from '../lib/accounts.js';
 import { canConnect, validCredential } from '../lib/authorize.js';
+import { putSetting } from '../lib/settings.js';
 
 // Connect or renew the caller's own university account. The credential is tested
 // against the university first, stored in the bot's private Telegram database,
@@ -32,5 +33,8 @@ export default async function (input, ctx) {
     const code = String(e?.message ?? 'SAVE_FAILED');
     throw new EndpointError(code === 'FORBIDDEN' ? 'فقط اتصال متعلق به خودتان را می‌توانید تغییر دهید.' : 'ذخیرهٔ اتصال انجام نشد.', { code });
   }
+  // The next scheduled scan discovers new coverage and rematches registered
+  // students, even if their previous roster lookup was cached recently.
+  await putSetting('coverageRefreshAt', Date.now());
   return { connected: true, account: redactAccount(account), courses: courses.length };
 }

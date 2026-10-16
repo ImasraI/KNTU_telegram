@@ -6,7 +6,28 @@ import { getSetting } from './settings.js';
 import { connector } from './moodle.js';
 import { courseKey } from './plan.js';
 import { signature, notification } from './content.js';
-import { personalItems, itemReceipt, unseenItems, consented } from './student-policy.js';
+import { personalItems, itemReceipt, unseenItems, consented, identityText } from './student-policy.js';
+
+export const COURSE_SUPPORT = 'اگر فهرست درس‌ها ناقص یا نادرست است، به @Arsam_alaei پیام بدهید.';
+
+export async function registerDetected(tgId, found, requestedName) {
+  const row = await subscriber(tgId);
+  if (!row) return false;
+  const courses = (await getSetting('courses')) ?? [];
+  const ids = courses.filter(c => found.courses.includes(String(c.id))).map(c => String(c.id));
+  const seen = {};
+  for (const course of courses.filter(c => ids.includes(String(c.id)))) {
+    for (const item of personalItems(await savedItems(course))) seen[itemReceipt(course.id, item)] = signature(item);
+  }
+  const live = await subscriber(tgId);
+  if (!live) return false; // /forget during a lookup must not recreate the user.
+  await saveSubscriber(tgId, { active: !live.profile.paused, seen, profile: {
+    ...live.profile, stage: null, pending: null, registered: true, confirmed: true,
+    name: found.name ?? requestedName, participantId: found.participantId ?? null,
+    ambiguous: !!found.ambiguous, courses: ids, confirmedAt: Date.now(),
+  } });
+  return true;
+}
 
 export async function subscriber(tgId) {
   return (await db.select().from(subscriptions).where(eq(subscriptions.tgId, tgId)).get()) ?? null;
@@ -35,6 +56,7 @@ export async function confirmSubscription(tgId) {
   const seen = {};
   for (const course of selected) for (const item of personalItems(await savedItems(course))) seen[itemReceipt(course.id, item)] = signature(item);
   await saveSubscriber(tgId, { active: true, seen, profile: {
+    ...row.profile, paused: false, pending: null, registered: true,
     username: row.profile.username ?? null, name: pending.name ?? null,
     courses: selected.map(c => String(c.id)), confirmed: true, confirmedAt: Date.now(),
   } });
@@ -71,10 +93,63 @@ export async function findStudentCourses(query) {
     if (!read) failures.push(String(course.id));
   }
   return { courses: people.size > 1 ? [] : [...new Set(matches)], name,
+    participantId: people.size === 1 ? [...people][0] : null,
     ambiguous: people.size > 1, incomplete: incomplete || failures.length > 0 };
   } finally {
     await db.run(sql`UPDATE leases SET until = 0 WHERE key = 'participant_lookup' AND until = ${leaseUntil}`);
   }
+}
+
+// New coverage is checked once per roster for all matching subscribers. This
+// also retries inaccessible lists and empty registrations daily. Never unpauses
+// someone and never removes established courses on a reduced participant view.
+export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(), budgetMs = 45000 } = {}) {
+  const users = await db.select().from(subscriptions).all();
+  const accounts = readRoster ? [] : (await enabledAccounts()).filter(a => a.mode === 'session');
+  const coverageEpoch = Number(await getSetting('coverageRefreshAt')) || 0;
+  let added = 0, checked = 0, failed = 0;
+  for (const entry of plan) {
+    if (Date.now() - now > budgetMs) break;
+    const id = String(entry.course.id);
+    const candidates = users.filter(u => (u.profile?.registered || u.profile?.confirmed) && u.profile?.name && !u.profile?.ambiguous
+      && !u.profile.courses?.includes(id)
+      && Number(u.profile.rosterChecks?.[id] ?? 0) < Math.max(coverageEpoch, now - 86400000));
+    if (!candidates.length) continue;
+    const queries = candidates.map(u => ({ name: u.profile.name, id: u.profile.participantId }));
+    let people;
+    if (readRoster) {
+      try { people = await readRoster(entry.course, queries); } catch { failed++; continue; }
+    } else {
+      for (const account of accounts.filter(a => !entry.readers?.length || entry.readers.includes(a.id))) {
+        try { people = await connector(fetch, account).findParticipants(entry.course, queries); break; }
+        catch { /* try another reader; leave failures eligible for next scan */ }
+      }
+    }
+    if (!people) { failed++; continue; }
+    checked++;
+    for (const candidate of candidates) {
+      const live = await subscriber(candidate.tgId);
+      if (!live || live.profile.name !== candidate.profile.name) continue;
+      const found = people.filter(p => live.profile.participantId ? String(p.id) === String(live.profile.participantId)
+        : identityText(p.name) === identityText(live.profile.name));
+      const identities = [...new Set(found.map(p => String(p.id)))];
+      const profile = { ...live.profile, rosterChecks: { ...live.profile.rosterChecks, [id]: now } };
+      const patch = { profile };
+      if (identities.length === 1 && !profile.courses?.includes(id)) {
+        profile.courses = [...(profile.courses ?? []), id];
+        profile.participantId = identities[0];
+        profile.registered = true;
+        profile.confirmed = true;
+        profile.confirmedAt ??= now;
+        patch.seen = { ...live.seen };
+        // Existing contents of a newly covered class are not a flood of alerts.
+        for (const item of personalItems(await savedItems(entry.course))) patch.seen[itemReceipt(id, item)] = signature(item);
+        added++;
+      }
+      await saveSubscriber(candidate.tgId, patch);
+    }
+  }
+  return { added, checked, failed };
 }
 
 // Independent of public-send bookkeeping: failed private sends remain unseen and

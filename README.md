@@ -5,8 +5,8 @@ Moodle courses at <https://vc.kntu.ac.ir> for a small set of university accounts
 posts new/changed course activities into one chosen group/topic.
 
 **Student access:** public commands and Persian menus are available to everyone.
-Personal notifications require the student's own confirmation of a course selection,
-not administrator approval. Only voluntary credential contributors need approval
+After registration, course matching and personal notifications activate automatically,
+without a course selection or confirmation screen. Only voluntary credential contributors need approval
 from @Arsam_alaei. See [the student experience](docs/student-experience.md) for
 registration, name matching limits, privacy, delivery behavior and deployment.
 

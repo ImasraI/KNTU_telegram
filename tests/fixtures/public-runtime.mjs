@@ -8,6 +8,7 @@ const records = new Map(), snapshotRows = new Map(), messages = [];
 const subTable = { name: 'subscriptions', tgId: 'tgId' }, snapTable = { name: 'snapshots', key: 'key' };
 const store = table => table.name === 'subscriptions' ? records : snapshotRows;
 const db = {
+  async run() { return { rowsAffected: 1 }; },
   select() {
     let table, condition;
     return { from(t) { table = t; return this; }, where(c) { condition = c; return this; },
@@ -40,10 +41,14 @@ const api = { async sendMessage(input) {
 const context = createContext({ console, Date, Map, Set, Number, String, JSON, Math });
 const modules = new Map();
 const overrides = new Map([
-  ['sdk', { db, api, fetch: () => assert.fail('unexpected university request') }],
+  ['sdk', { db, api, fetch: async (url, options) => {
+    assert.ok(url.includes('/user/index.php?id=3'));
+    assert.equal(options.headers.Cookie, 'MoodleSession=TEST');
+    return { ok: true, text: async () => '<table id="participants"><tr><th class="c1"><a href="/user/view.php?id=42&amp;course=3">Student Name</a></th><td class="c2">شاگرد</td></tr></table>' };
+  } }],
   ['sdk/db', { eq: (column, value) => ({ column, value }), sql: () => ({}) }],
   [new URL('schema.js', root).href, { subscriptions: subTable, snapshots: snapTable }],
-  [new URL('lib/accounts.js', root).href, { enabledAccounts: async () => [] }],
+  [new URL('lib/accounts.js', root).href, { enabledAccounts: async () => [{ id: 'acc_a', mode: 'session', secret: 'TEST' }] }],
   [new URL('lib/settings.js', root).href, { getSetting: async key => key === 'courses' ? [course] : undefined }],
   [new URL('lib/monitor.js', root).href, { directorySummary: async () => ({ courses: [{ id: 3, name: 'ریاضی', line: '🏫 کلاس 11' }] }) }],
 ]);
@@ -73,10 +78,10 @@ assert.equal(await handlePublic({ chat: { id: -10, type: 'group' }, from: { id: 
 await send('/register student123');
 assert.equal(records.get(123).active, false);
 assert.equal(records.get(123).profile.stage, 'name');
-await send('/select 3 999');
-assert.deepEqual(records.get(123).profile.pending.courses, ['3']);
-assert.equal(records.get(123).active, false);
-await send('/confirm');
+await send('/name Student Name');
+assert.deepEqual(records.get(123).profile.courses, ['3']);
+assert.equal(records.get(123).profile.pending, null);
+assert.equal(records.get(123).profile.participantId, '42');
 assert.equal(records.get(123).active, true);
 let result = await sub.deliverPersonal([course], () => '🏫 کلاس 11');
 assert.equal(result.sent, 0); // Confirmation seeds the current snapshot.
@@ -98,9 +103,32 @@ await sub.saveSubscriber(456, { active: true, profile: { confirmed: false, cours
 assert.equal((await sub.deliverPersonal([course], () => '')).sent, 0);
 await sub.saveSubscriber(456, { active: true, profile: { confirmed: true, courses: ['82'] }, seen: {} });
 assert.equal((await sub.deliverPersonal([course], () => '')).sent, 0);
-await send('/select 3');
+await send('/register student123');
 await send('/cancel');
 assert.equal(records.get(123).profile.pending, null);
 await send('/confirm');
 assert.equal(records.get(123).active, false);
-console.log('Public access, confirmation, private retry, deduplication, stop, resume and deletion passed.');
+records.clear();
+await sub.saveSubscriber(123, { active: true, profile: { registered: true, confirmed: true, name: 'Student Name', participantId: '42', courses: [] }, seen: {} });
+await sub.saveSubscriber(456, { active: false, profile: { registered: true, confirmed: true, paused: true, name: 'Student Name', participantId: '42', courses: [] }, seen: {} });
+let rosterReads = 0;
+const plan = [{ course, readers: ['acc_a'] }];
+const coverage = await sub.refreshStudentCoverage(plan, { readRoster: async (_course, queries) => {
+  rosterReads++; assert.equal(queries.length, 2); return [{ id: '42', name: 'Student Name' }];
+} });
+assert.equal(coverage.added, 2);
+assert.equal(rosterReads, 1); // Read once for all students, not once per user.
+assert.deepEqual(records.get(123).profile.courses, ['3']);
+assert.deepEqual(records.get(456).profile.courses, ['3']);
+assert.equal(records.get(456).active, false); // Coverage must not undo /stop.
+assert.equal((await sub.deliverPersonal([course], () => '')).sent, 0); // Seed existing items.
+snapshotRows.get('https://vc.kntu.ac.ir#3').value.push({ ...item, id: 99 });
+assert.equal((await sub.deliverPersonal([course], () => '')).sent, 1); // Active student only.
+await sub.saveSubscriber(789, { active: true, profile: { registered: true, name: 'Same Name', participantId: '99', courses: [] }, seen: {} });
+await sub.refreshStudentCoverage(plan, { readRoster: async () => [{ id: '100', name: 'Same Name' }] });
+assert.deepEqual(records.get(789).profile.courses, []); // Known Moodle id prevents homonym matches.
+await send('/cooperate');
+assert.ok(messages.every(m => m.text.length <= 4096));
+assert.ok(messages.some(m => m.text.includes('F12')));
+assert.ok(messages.some(m => m.text.includes('ستون Value')));
+console.log('Automatic registration, new coverage, paused users, private retry and Persian guidance passed.');

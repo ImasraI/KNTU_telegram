@@ -13,7 +13,7 @@ import { classLine, describeBinding, parseCourseCode, courseTitle, deriveLabel }
 import { enabledAccounts, ensureMigrated, setHealth } from './accounts.js';
 import { notifyOnce } from './notify.js';
 import { noticeKey } from './notice-policy.js';
-import { deliverPersonal } from './subscriptions.js';
+import { deliverPersonal, refreshStudentCoverage } from './subscriptions.js';
 
 export { getSetting, putSetting } from './settings.js';
 
@@ -207,10 +207,12 @@ export async function scan({ reason = 'manual' } = {}) {
       await putSetting('pendingDigests', merged);
     }
 
+    const studentCoverage = await refreshStudentCoverage(plan);
     const personal = await deliverPersonal(courseList(plan), lineFor);
     const result = {
       checkedAt, reason,
       personal,
+      studentCoverage,
       accounts: { total: accounts.length, ok: health.filter(h => h.state === 'ok').length, failed: health.filter(h => h.state !== 'ok').length },
       courses: plan.length,
       sent: counts.sent, baselined: counts.baselined, readerChanges: counts.readerChanges, absorbed: counts.absorbed,

@@ -2,10 +2,16 @@ import { tree, nodes, nodeText } from './content.js';
 import { identityText } from './student-policy.js';
 
 export function matchingParticipants(html, query) {
+  return matchingParticipantsMany(html, [{ name: query }]);
+}
+
+export function matchingParticipantsMany(html, queries) {
   const doc = tree(html);
   const table = nodes(doc, n => n.tag === 'table' && n.attrs.id === 'participants')[0];
   if (!table) throw new Error('PARTICIPANTS_LAYOUT');
   const matches = [];
+  const wantedNames = new Set(queries.filter(q => !q.id).map(q => identityText(q.name)));
+  const wantedIds = new Set(queries.filter(q => q.id).map(q => String(q.id)));
   const text = n => typeof n === 'string' ? n :
     (n.attrs.role === 'img' || /(?:^|\s)accesshide(?:\s|$)/.test(n.attrs.class ?? '') ? '' : n.children.map(text).join(' '));
   for (const row of nodes(table, n => n.tag === 'tr')) {
@@ -14,8 +20,8 @@ export function matchingParticipants(html, query) {
     if (!link) continue;
     const name = text(link).replace(/\s+/g, ' ').trim();
     const username = row.attrs['data-username'] ?? link.attrs['data-username'];
-    if (identityText(name) !== identityText(query) && (!username || identityText(username) !== identityText(query))) continue;
     const id = (link.attrs.href.match(/[?&]id=(\d+)/) ?? [])[1];
+    if (!wantedIds.has(id) && !wantedNames.has(identityText(name)) && (!username || !wantedNames.has(identityText(username)))) continue;
     if (id) matches.push({ id, name: name.slice(0, 100) });
   }
   return matches;
