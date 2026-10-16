@@ -6,12 +6,13 @@ import { OWNER_ID } from '../tgcloud/lib/config.js';
 export async function check(env, request = fetch) {
   const token = env.TGCLOUD_TOKEN;
   if (!/^app\d+:[^\s:]+$/.test(token ?? '')) throw new Error('Missing or invalid CLI secret');
+  if (!env.DATABASE_KEY) throw new Error('Missing shared database secret');
   const appId = token.split(':')[0];
   const response = await request(`https://cloud.telegram.org/${appId}/manage/run`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      module: 'endpoints/check', sources, args: { scheduled: true },
+      module: 'endpoints/check', sources: { ...sources, 'lib/database-secret': 'export const DATABASE_KEY = '+JSON.stringify(env.DATABASE_KEY ?? '')+';' }, args: { scheduled: true },
       ctx: { initData: { user: { id: OWNER_ID } } },
     }),
     signal: AbortSignal.timeout(300000),

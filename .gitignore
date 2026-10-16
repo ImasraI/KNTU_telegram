@@ -8,3 +8,5 @@ personal/.dev.vars*
 personal/.wrangler/
 
 shared/.wrangler/
+
+tgcloud/lib/database-secret.js

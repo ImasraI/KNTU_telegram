@@ -1,8 +1,9 @@
+import './prepare-database.mjs';
 // External-scheduler entry point (the GitHub Actions "Course checks" workflow).
 //
 // It invokes tgcloud/endpoints/check through the authenticated CLI, which runs this
 // repository's local source on Telegram WITHOUT deploying it, with an owner
-// init-data context. University credentials never leave Telegram's database, so
+// init-data context. University credentials stay inside the authenticated D1 backend, so
 // nothing here can copy them to the scheduler.
 //
 // Required environment:
@@ -21,7 +22,7 @@ const token = process.env.TGCLOUD_TOKEN ?? '';
 
 // Screen scraping is the CLI's only output channel; make sure a stray echo of the
 // credential can never reach a public workflow log.
-const scrub = text => (token ? String(text).split(token).join('[REDACTED]') : String(text ?? ''));
+const scrub = text => [token,process.env.DATABASE_KEY].filter(Boolean).reduce((value,secret)=>value.split(secret).join('[REDACTED]'),String(text??''));
 function fail(message) {
   process.stderr.write(`\ncheck failed: ${scrub(message)}\n`);
   process.exit(1);

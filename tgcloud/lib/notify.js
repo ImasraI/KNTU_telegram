@@ -1,5 +1,6 @@
-import { api, db, BotApiError } from 'sdk';
-import { eq } from 'sdk/db';
+import { api, BotApiError } from 'sdk';
+import { db } from './database.js';
+import { eq } from './database.js';
 import { notices } from '../schema.js';
 import { noticePlan } from './notice-policy.js';
 

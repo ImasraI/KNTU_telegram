@@ -66,6 +66,7 @@ async function load(id) {
   modules.set(id, mod);
   return mod;
 }
+overrides.set(new URL('lib/database.js', root).href, { db, ...overrides.get('sdk/db') });
 const entry = await load(new URL('lib/public-bot.js', root).href);
 await entry.link((specifier, parent) => load(specifier.startsWith('.') ? new URL(specifier, parent.identifier).href : specifier));
 await entry.evaluate();

@@ -5,10 +5,8 @@ name: Course checks
 # from outside: this workflow calls the deployed check endpoint through the CLI.
 on:
   workflow_dispatch:
-  schedule:
-    # Every six hours, deliberately away from minute zero because GitHub
-    # queues scheduled runs at high load and may delay them by several minutes.
-    - cron: '4 */6 * * *'
+  # The live 30-minute scheduler is Cloudflare. Keep this as a manual fallback;
+  # configure DATABASE_KEY as a repository secret before running it.
 
 permissions:
   contents: read
@@ -46,5 +44,6 @@ jobs:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
           # Must stay equal to OWNER_ID in tgcloud/lib/config.js; the script refuses
           # to run when they disagree.
+          DATABASE_KEY: ${{ secrets.DATABASE_KEY }}
           BOT_OWNER_ID: '747977517'
         run: node scripts/check.mjs

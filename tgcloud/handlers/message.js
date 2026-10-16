@@ -139,8 +139,8 @@ export default async function (message) {
     }
     await reply('دستور شناخته نشد. /help برای راهنمای عمومی و /admin برای مدیریت');
   } catch (error) {
-    if (/sqlite/i.test(String(error?.message ?? ''))) {
-      await reply('پایگاه دادهٔ ربات در تلگرام فعلاً پاسخ نمی‌دهد؛ این مشکل به ورود یا کوکی دانشگاه مربوط نیست. کمی بعد دوباره تلاش کنید.');
+    if (/sqlite|SHARED_DATABASE/i.test(String(error?.message ?? ''))) {
+      await reply('پایگاه دادهٔ ربات فعلاً در دسترس نیست یا در حال نگهداری است؛ این مشکل به ورود یا کوکی دانشگاه مربوط نیست. کمی بعد دوباره تلاش کنید.');
       return;
     }
     await reply('انجام درخواست ممکن نشد. کمی بعد دوباره تلاش کنید.' + (canConnect(role) ? ' برای مشکل اتصال دانشگاه، فرم /setup را بررسی کنید.' : ''));

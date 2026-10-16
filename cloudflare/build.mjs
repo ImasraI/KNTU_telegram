@@ -5,7 +5,7 @@ async function collect(dir, prefix = '') {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const name = prefix + entry.name;
     if (entry.isDirectory()) await collect(new URL(entry.name + '/', dir), name + '/');
-    else if (name.endsWith('.js')) sources[name.slice(0, -3)] = await readFile(new URL(entry.name, dir), 'utf8');
+    else if (name.endsWith('.js') && name !== 'lib/database-secret.js') sources[name.slice(0, -3)] = await readFile(new URL(entry.name, dir), 'utf8');
   }
 }
 await collect(root);

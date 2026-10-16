@@ -149,6 +149,7 @@ async function load(id) {
   return mod;
 }
 
+schema.set(new URL('lib/database.js', root).href, { db, ...schema.get('sdk/db') });
 const entry = await load(new URL('endpoints/student.js', root).href);
 await entry.link((specifier, parent) => load(specifier.startsWith('.') ? new URL(specifier, parent.identifier).href : specifier));
 await entry.evaluate();

@@ -1,5 +1,5 @@
-import { db } from 'sdk';
-import { eq } from 'sdk/db';
+import { db } from './database.js';
+import { eq } from './database.js';
 import { settings } from '../schema.js';
 
 export async function getSetting(key) {

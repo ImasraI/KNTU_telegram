@@ -1,5 +1,5 @@
-import { db } from 'sdk';
-import { eq } from 'sdk/db';
+import { db } from './database.js';
+import { eq } from './database.js';
 import { professors, classBindings } from '../schema.js';
 import { normalizeSpaces } from './classes.js';
 import { getSetting, putSetting } from './settings.js';

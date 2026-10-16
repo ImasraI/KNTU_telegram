@@ -1,5 +1,6 @@
-import { api, db, fetch } from 'sdk';
-import { eq, sql } from 'sdk/db';
+import { api, fetch } from 'sdk';
+import { db } from './database.js';
+import { eq, sql } from './database.js';
 import { snapshots } from '../schema.js';
 import { GROUP_ID, ORIGIN, OWNER_ID, COVERAGE_NOTICE_COOLDOWN_MS, SESSION_NOTICE_COOLDOWN_MS } from './config.js';
 import { getSetting, putSetting } from './settings.js';

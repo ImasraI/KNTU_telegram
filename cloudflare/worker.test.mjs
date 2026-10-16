@@ -5,7 +5,7 @@ const { default: worker, check } = await import('./worker.js');
 
 test('cron sends the authenticated owner check to Telegram without logging secrets', async () => {
   let calls = 0;
-  await check({ TGCLOUD_TOKEN: 'app123:test-secret' }, async (url, options) => {
+  await check({ TGCLOUD_TOKEN: 'app123:test-secret', DATABASE_KEY:'bridge-test' }, async (url, options) => {
     calls++;
     assert.equal(url, 'https://cloud.telegram.org/app123/manage/run');
     const body = JSON.parse(options.body);
@@ -13,6 +13,7 @@ test('cron sends the authenticated owner check to Telegram without logging secre
     assert.equal(body.args.scheduled, true);
     assert.equal(body.ctx.initData.user.id, 747977517);
     assert.ok(body.sources['endpoints/check']);
+    assert.equal(body.sources['lib/database-secret'], 'export const DATABASE_KEY = \"bridge-test\";');
     assert.equal(options.headers.Authorization, 'Bearer app123:test-secret');
     return Response.json({ ok: true, result: { result: { ok: true }, log: [] } });
   });
@@ -21,7 +22,7 @@ test('cron sends the authenticated owner check to Telegram without logging secre
 });
 
 test('remote failures and incomplete course coverage fail the scheduled invocation', async () => {
-  const env = { TGCLOUD_TOKEN: 'app123:test-secret' };
+  const env = { TGCLOUD_TOKEN: 'app123:test-secret', DATABASE_KEY:'bridge-test' };
   for (const result of [
     { ok: false, description: 'private remote details' },
     { ok: true, result: { log: ['SCHEDULED_CHECK_PROBLEMS'] } },

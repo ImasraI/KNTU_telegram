@@ -1,5 +1,6 @@
-import { db, api, fetch } from 'sdk';
-import { eq, sql } from 'sdk/db';
+import { api, fetch } from 'sdk';
+import { db } from './database.js';
+import { eq, sql } from './database.js';
 import { subscriptions, snapshots } from '../schema.js';
 import { enabledAccounts } from './accounts.js';
 import { getSetting } from './settings.js';

@@ -1,5 +1,6 @@
-import { db, EndpointError } from 'sdk';
-import { inArray } from 'sdk/db';
+import { EndpointError } from 'sdk';
+import { db } from '../lib/database.js';
+import { inArray } from '../lib/database.js';
 import { snapshots } from '../schema.js';
 import { getSetting } from '../lib/settings.js';
 import { directorySummary } from '../lib/monitor.js';
@@ -16,7 +17,7 @@ import { FILTERS, PAGE_SIZE, courseCounts, courseView, coverageView, freshness, 
 // isolation: every personal action is scoped to `ctx.initData.user.id`, verified
 // by the platform, and no input can name another user. A response never carries a
 // credential, an account id, a participant roster or the long university code.
-const MAX_KEYS_PER_QUERY = 200;
+const MAX_KEYS_PER_QUERY = 100;
 
 function policyView() {
   return {

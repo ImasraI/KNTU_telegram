@@ -358,3 +358,7 @@ node node_modules/@tgcloud/cli/bin/tgcloud.js run endpoints/accounts '{"action":
 ```
 
 `docs/tgcloud-sdk.md` is the official SDK reference for the deployed runtime (`sdk`, `sdk/db`).
+
+## Shared database backend
+
+Shared course/account/subscriber data now lives in a dedicated Cloudflare D1 database. Telegram still runs the bot and Mini Apps; the personal VC database remains separate. See [database operations and backup](docs/database-backup.md) before deploying from another checkout; a private `DATABASE_KEY` must be provisioned and must never be committed.

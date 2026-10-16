@@ -1,4 +1,5 @@
-import { api, db, EndpointError } from 'sdk';
+import { api, EndpointError } from 'sdk';
+import { db } from '../lib/database.js';
 import { subscriptions } from '../schema.js';
 import { MINI_APP_URL, OWNER_ID } from '../lib/config.js';
 import { PUBLIC_COMMANDS } from '../lib/student-policy.js';

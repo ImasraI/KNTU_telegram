@@ -152,3 +152,19 @@ The platform manages the bot's webhook for you, derived from your deployed
 `handlers/*`, and refreshes it on `push`. If it ever drifts — e.g. someone called
 `setWebhook` with the raw bot token — `npx tgcloud webhook` shows the mismatch and
 `npx tgcloud webhook sync` repairs it.
+
+## Shared D1 migration (current live storage)
+
+Shared application data now lives in Cloudflare D1, reached from Telegram through
+`tgcloud/lib/database.js`. For application queries import `db`, `eq`, `inArray`,
+and `sql` from that module; do not reintroduce `sdk.db` dependencies. The original
+`schema.js` declarations supply column metadata and legacy backup compatibility.
+Update `lib/storage-model.js` alongside schema changes and apply D1 migrations
+explicitly; do not run Telegram migrations to change live shared storage.
+
+`tgcloud/lib/database-secret.js` is generated private machine configuration,
+gitignored and deployed only as a backend module. Never read or print its value,
+commit it, or bundle it into static assets. Use `scripts/prepare-database.mjs`
+with the owner's `DATABASE_KEY` environment secret on a new checkout. The cron
+Worker injects this module from its own secret and the bundler excludes the local
+file. See `docs/database-backup.md` for verified migration and rollback notes.

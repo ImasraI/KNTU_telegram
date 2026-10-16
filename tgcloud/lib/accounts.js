@@ -1,5 +1,5 @@
-import { db } from 'sdk';
-import { eq } from 'sdk/db';
+import { db } from './database.js';
+import { eq } from './database.js';
 import { accounts, contributors } from '../schema.js';
 import { OWNER_ID, MAX_ACCOUNTS } from './config.js';
 import { getSetting, putSetting } from './settings.js';
