@@ -1,5 +1,5 @@
 import { BASE, ORIGIN } from './config.js';
-import { participantProfessors } from './participants.js';
+import { participantProfessors, matchingParticipants } from './participants.js';
 import { plain, safeLink, parseCourse, parseAssignment, tree, nodes, nodeText, extractCourseMeta, extractEnrollmentCodes } from './content.js';
 
 // What a scan can and cannot see (kept honest in the README as well):
@@ -66,6 +66,23 @@ export function connector(fetcher, credentials) {
     return body;
   }
   return {
+    async findParticipant(course, query) {
+      if (mode !== 'session') throw new Error('PARTICIPANTS_SESSION_REQUIRED');
+      const id = Number(course.id);
+      if (!Number.isSafeInteger(id) || id <= 0) throw new Error('COURSE_ID_REQUIRED');
+      const matches = new Map(), visited = new Set(), pending = [0];
+      while (pending.length) {
+        const page = pending.shift();
+        if (visited.has(page)) continue;
+        if (visited.size >= 20) throw new Error('PARTICIPANTS_PAGE_LIMIT');
+        visited.add(page);
+        const body = await html('/user/index.php?id=' + id + '&perpage=5000&page=' + page);
+        matchingParticipants(body, query).forEach(person => matches.set(person.id, person));
+        const { pages } = participantProfessors(body);
+        pending.push(...pages.filter(p => !visited.has(p)));
+      }
+      return [...matches.values()];
+    },
     async professor(course) {
       if (mode !== 'session') return null;
       const id = Number(course.id);

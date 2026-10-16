@@ -1,6 +1,6 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KNTU Bot Setup</title>
+<html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>اتصال دانشگاه — ربات خواجه نصیر</title>
 <style>
 body{font:16px system-ui;background:#f3f5f8;color:#16243a;margin:0;padding:28px 18px}
 main{max-width:560px;margin:auto;background:white;padding:26px;border-radius:18px}
@@ -19,31 +19,25 @@ code{background:#f1f4f9;padding:1px 5px;border-radius:5px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 </style>
 <main>
-<h1>KNTU Bot Setup</h1>
-<p id="role" class="muted">Checking access…</p>
+<h1>فرم خصوصی همکاری دانشگاه</h1>
+<p id="role" class="muted">در حال بررسی دسترسی…</p>
 
 <section id="accountsSection">
-  <h2>University accounts</h2>
+  <h2>اتصال‌های دانشگاهی</h2>
   <div id="accounts"></div>
 </section>
 
-<h2 id="formTitle">Connect an account</h2>
+<h2 id="formTitle">افزودن اتصال</h2>
 <form id="form">
-  <label>Label (optional)<input id="label" type="text" maxlength="60" placeholder="e.g. Arsam — math group"></label>
-  <label>Connection method
-    <select id="mode">
-      <option value="session">Moodle session (temporary, needs renewal)</option>
-      <option value="token">Moodle API token (preferred when available)</option>
-    </select>
-  </label>
-  <label>Credential<input id="secret" type="password" autocomplete="off" spellcheck="false" required minlength="10" maxlength="256"></label>
-  <small>Paste only the <code>MoodleSession</code> value or a Moodle API token. It is stored in this bot’s private Telegram database and sent only to vc.kntu.ac.ir. Your university password is never needed, and no credential is returned to this page.</small>
-  <button id="save" type="submit">Test connection and save</button>
-  <button id="cancel" class="ghost" type="button" hidden>Cancel renewal</button>
+  <label>نام دلخواه (اختیاری)<input id="label" type="text" maxlength="60" placeholder="مثلاً حساب اصلی من"></label>
+  <label>مقدار MoodleSession<input id="secret" type="password" autocomplete="off" spellcheck="false" required minlength="10" maxlength="256"></label>
+  <small>فقط مقدار <code>MoodleSession</code> را وارد کنید؛ رمز عبور لازم نیست. مقدار در پایگاه دادهٔ خصوصی ربات روی تلگرام نگهداری و هنگام خواندن سایت برای vc.kntu.ac.ir ارسال می‌شود. مقدار ذخیره‌شده به این صفحه برگردانده نمی‌شود. همکاری اختیاری است و حذف اتصال از این فرم ممکن است.</small>
+  <button id="save" type="submit">آزمایش و ذخیره</button>
+  <button id="cancel" class="ghost" type="button" hidden>لغو تازه‌سازی</button>
 </form>
 
 <section id="classSection" hidden>
-  <h2>Classes &amp; professors</h2>
+  <h2>کلاس‌ها و استادها</h2>
   <p class="muted">نام استاد از شرکت‌کنندگان دریافت می‌شود. فقط شماره دو رقمی کلاس نمایش داده می‌شود؛ برای نمایش ساعت به جای آن، زمان کلاس را تنظیم کنید.</p>
   <div id="classList"></div>
   <div id="professors" hidden></div>
@@ -52,19 +46,19 @@ code{background:#f1f4f9;padding:1px 5px;border-radius:5px}
       <input id="profCode" placeholder="کد استاد (4051)" maxlength="20">
       <input id="profName" placeholder="نام استاد" maxlength="60">
     </div>
-    <button type="submit">Save professor</button>
+    <button type="submit">ذخیرهٔ استاد</button>
   </form>
 </section>
 
-<h2>Destination</h2>
+<h2>مقصد گروهی</h2>
 <p id="destination" class="muted"></p>
-<small>To bind or change it: as the bot owner send <code>/bind</code> inside the target group topic (or general topic). Only the configured owner can bind it.</small>
+<small>فقط مدیر می‌تواند با <code>/bind</code> در گروه یا موضوع مقصد، آن را ثبت کند.</small>
 
-<h2>Status</h2>
+<h2>وضعیت</h2>
 <div id="status" class="muted"></div>
-<button id="check" type="button" hidden>Check courses now</button>
+<button id="check" type="button" hidden>بررسی فوری درس‌ها</button>
 
-<h2>What is read</h2>
+<h2>چه اطلاعاتی خوانده می‌شود؟</h2>
 <p class="muted" id="limits"></p>
 <p id="result" role="status"></p>
 </main>
@@ -81,8 +75,8 @@ const WEEKDAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه',
 
 function call(name, input) {
   return new Promise((resolve, reject) => {
-    if (!app?.initData || !app?.Serverless) { reject(new Error('Open this page from @KNTU_aidbot in Telegram.')); return; }
-    app.Serverless.call(name, input || {}, (err, data) => err ? reject(new Error(err.message || 'Request failed')) : resolve(data));
+    if (!app?.initData || !app?.Serverless) { reject(new Error('این صفحه را از @KNTU_aidbot در تلگرام باز کنید.')); return; }
+    app.Serverless.call(name, input || {}, (err, data) => err ? reject(new Error(err.message || 'درخواست انجام نشد.')) : resolve(data));
   });
 }
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -90,14 +84,15 @@ const slotText = s => `${WEEKDAYS[s.weekday] ? WEEKDAYS[s.weekday] + ' ' : ''}${
 
 function accountCard(a) {
   const health = a.health || {};
-  const when = health.at ? new Date(health.at).toLocaleString() : 'never';
+  const when = health.at ? new Date(health.at).toLocaleString('fa-IR') : 'هنوز بررسی نشده';
+  const states = {ok:'سالم', auth:'نشست منقضی', partial:'پوشش ناقص', unreachable:'عدم دسترسی', layout:'تغییر ساختار سایت', error:'خطا', unknown:'نامشخص'};
   return `<div class="card" data-id="${escapeHtml(a.id)}">
     <b>${escapeHtml(a.label || a.id)}</b>
-    <span class="muted">${escapeHtml(a.mode)} · ${a.enabled ? 'enabled' : 'disabled'} · ${escapeHtml(health.state || 'unknown')}${health.code ? ' · ' + escapeHtml(health.code) : ''}${Number.isFinite(Number(health.courses)) ? ' · ' + health.courses + ' courses' : ''}</span>
-    <span class="muted">owner ${a.ownerId} · verified ${escapeHtml(when)}${a.hasCredential ? '' : ' · no credential'}</span>
-    <div><button class="ghost" data-act="renew" data-id="${escapeHtml(a.id)}">Renew</button>
-    <button class="ghost" data-act="${a.enabled ? 'disable' : 'enable'}" data-id="${escapeHtml(a.id)}">${a.enabled ? 'Disable' : 'Enable'}</button>
-    <button class="ghost danger" data-act="delete" data-id="${escapeHtml(a.id)}">Delete</button></div>
+    <span class="muted">${a.mode === 'session' ? 'کوکی نشست' : 'توکن دانشگاه'} · ${a.enabled ? 'فعال' : 'غیرفعال'} · ${escapeHtml(states[health.state] || 'نامشخص')}${Number.isFinite(Number(health.courses)) ? ' · ' + health.courses + ' درس' : ''}</span>
+    <span class="muted">صاحب حساب ${a.ownerId} · آخرین بررسی ${escapeHtml(when)}${a.hasCredential ? '' : ' · فاقد اعتبار اتصال'}</span>
+    <div><button class="ghost" data-act="renew" data-id="${escapeHtml(a.id)}">تازه‌سازی</button>
+    <button class="ghost" data-act="${a.enabled ? 'disable' : 'enable'}" data-id="${escapeHtml(a.id)}">${a.enabled ? 'غیرفعال' : 'فعال'}</button>
+    <button class="ghost danger" data-act="delete" data-id="${escapeHtml(a.id)}">حذف اتصال</button></div>
   </div>`;
 }
 
@@ -121,20 +116,20 @@ function classCard(c) {
 function render(data) {
   role = data.role;
   $('role').textContent = data.owner
-    ? 'Bot owner: you can manage every account, the class directory and the destination.'
-    : 'Approved account holder: you can connect and renew your own account only.';
-  $('accounts').innerHTML = data.accounts.length ? data.accounts.map(accountCard).join('') : '<p class="muted">No account connected yet.</p>';
+    ? 'مدیر ربات: مدیریت اتصال‌ها، کلاس‌ها و مقصد اطلاع‌رسانی'
+    : 'همکار تأییدشده: فقط اتصال خودتان را مدیریت می‌کنید.';
+  $('accounts').innerHTML = data.accounts.length ? data.accounts.map(accountCard).join('') : '<p class="muted">هنوز اتصالی ثبت نشده است.</p>';
   $('destination').textContent = data.destination.text;
   const s = data.status;
   $('status').innerHTML = s
-    ? `<b>${escapeHtml(s.checkedAt)}</b> (${escapeHtml(s.reason || 'manual')})<br>${s.courses} courses · ${s.sent} sent · ${s.baselined} baselined · ${(s.failures || []).length} failed · ${(s.lost || []).length} lost<br>accounts: ${s.accounts?.ok ?? 0}/${s.accounts?.total ?? 0} healthy`
-    : 'No completed check yet.';
+    ? `<b>${escapeHtml(s.checkedAt)}</b><br>${s.courses} درس · ${s.sent} اعلان گروهی · ${s.personal?.sent ?? 0} اعلان شخصی · ${(s.failures || []).length} درس ناموفق<br>حساب سالم: ${s.accounts?.ok ?? 0} از ${s.accounts?.total ?? 0}`
+    : 'هنوز بررسی کامل نشده است.';
   if (data.pendingDigests?.length) {
-    $('status').innerHTML += `<br>${data.pendingDigests.length} initial digest(s) pending — the bot owner can publish them with <code>/digest</code>.`;
+    $('status').innerHTML += `<br>${data.pendingDigests.length} نمای اولیه در انتظار انتشار مدیر با <code>/digest</code>`;
   }
-  $('limits').textContent = 'Read: course modules, visible descriptions and dates, assignment introduction attachments, and quiz open/close from the API. Not read: forum replies, folder internals, PDF contents, and binary files replaced at an unchanged URL. Grades, submissions, private messages and participant lists are never collected.';
+  $('limits').textContent = 'خوانده می‌شود: فعالیت‌ها، توضیحات و تاریخ‌های قابل مشاهده، پیوست‌های معرفی تکلیف، زمان آزمون و فهرست شرکت‌کنندگان برای تطبیق نام استاد و درس‌های درخواستی دانشجو. فهرست کامل دانشجویان ذخیره یا منتشر نمی‌شود. نمره‌ها، پاسخ‌های تحویلی و پیام‌های خصوصی خوانده نمی‌شود. محتوای فایل PDF، پاسخ‌های تالار و تغییر فایل در همان نشانی بررسی نمی‌شود.';
   $('check').hidden = !data.owner;
-  $('formTitle').textContent = renewingId ? 'Renew this connection' : 'Connect an account';
+  $('formTitle').textContent = renewingId ? 'تازه‌سازی این اتصال' : 'افزودن اتصال';
   $('cancel').hidden = !renewingId;
   if (data.directory) renderDirectory(data.directory);
 }
@@ -142,11 +137,11 @@ function render(data) {
 function renderDirectory(directory) {
   $('classSection').hidden = false;
   const courses = directory.courses || [];
-  $('classList').innerHTML = courses.length ? courses.map(classCard).join('') : '<p class="muted">No covered courses yet — run a check first.</p>';
+  $('classList').innerHTML = courses.length ? courses.map(classCard).join('') : '<p class="muted">هنوز درسی تحت پوشش نیست؛ یک بررسی اجرا کنید.</p>';
   const professors = directory.professors || [];
   $('professors').innerHTML = professors.length
     ? professors.map(p => `<span class="muted">${escapeHtml(p.code)} — ${escapeHtml(p.name)}</span>`).join('<br>')
-    : '<span class="muted">No professor codes saved yet.</span>';
+    : '';
 }
 
 async function refresh() {
@@ -161,29 +156,29 @@ function say(message) { result.textContent = message; }
 $('form').onsubmit = async e => {
   e.preventDefault();
   const button = $('save'); button.disabled = true;
-  say('Testing the university connection…');
-  const input = { mode: $('mode').value, secret: $('secret').value, label: $('label').value };
+  say('در حال آزمایش اتصال دانشگاه…');
+  const input = { mode: 'session', secret: $('secret').value, label: $('label').value };
   if (renewingId) input.accountId = renewingId;
   try {
     const data = await call('setup', input);
     $('secret').value = '';
     renewingId = null;
     await refresh();
-    say(`Connected: ${data.courses} courses visible to this account. The first scan of a new course records its content silently.`);
+    say(`اتصال برقرار شد؛ ${data.courses} درس قابل مشاهده است. نخستین بررسی هر درس، محتوای موجود را بدون ارسال اعلان ثبت می‌کند.`);
   } catch (err) { say(err.message); }
   finally { button.disabled = false; }
 };
-$('cancel').onclick = () => { renewingId = null; $('secret').value = ''; $('cancel').hidden = true; $('formTitle').textContent = 'Connect an account'; say(''); };
+$('cancel').onclick = () => { renewingId = null; $('secret').value = ''; $('cancel').hidden = true; $('formTitle').textContent = 'افزودن اتصال'; say(''); };
 
 $('accounts').onclick = async e => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
   const id = b.dataset.id; const act = b.dataset.act;
-  if (act === 'renew') { renewingId = id; $('formTitle').textContent = 'Renew this connection'; $('cancel').hidden = false; $('secret').focus(); return; }
+  if (act === 'renew') { renewingId = id; $('formTitle').textContent = 'تازه‌سازی این اتصال'; $('cancel').hidden = false; $('secret').focus(); return; }
   b.disabled = true;
   try {
-    if (act === 'delete' && !confirm('Delete this connection? Its baselines stay shared with the other accounts.')) return;
+    if (act === 'delete' && !confirm('این اتصال حذف شود؟ سابقهٔ عمومی درس‌ها حفظ می‌شود.')) return;
     await call('accounts', { action: act, accountId: id });
-    await refresh(); say(act === 'delete' ? 'Connection deleted.' : `Connection ${act}d.`);
+    await refresh(); say(act === 'delete' ? 'اتصال حذف شد.' : act === 'enable' ? 'اتصال فعال شد.' : 'اتصال غیرفعال شد.');
   } catch (err) { say(err.message); }
   finally { b.disabled = false; }
 };
@@ -222,16 +217,16 @@ $('profForm').onsubmit = async e => {
     await call('directory', { action: 'professor', code: $('profCode').value, name: $('profName').value });
     $('profCode').value = ''; $('profName').value = '';
     renderDirectory(await call('directory', { action: 'list' }));
-    say('Professor saved.');
+    say('نام استاد از شرکت‌کنندگان دریافت می‌شود.');
   } catch (err) { say(err.message); }
 };
 
 $('check').onclick = async () => {
-  const b = $('check'); b.disabled = true; say('Checking courses…');
-  try { const r = await call('check', {}); await refresh(); say(JSON.stringify(r, null, 2)); }
+  const b = $('check'); b.disabled = true; say('در حال بررسی درس‌ها…');
+  try { const r = await call('check', {}); await refresh(); say(r.busy ? 'بررسی دیگری در حال اجراست.' : `${r.courses} درس بررسی شد؛ ${r.sent} اعلان گروهی و ${r.personal?.sent ?? 0} اعلان شخصی ارسال شد.`); }
   catch (err) { say(err.message); }
   finally { b.disabled = false; }
 };
 
-refresh().catch(err => { say(err.message); $('role').textContent = 'Access check failed.'; });
+refresh().catch(err => { say(err.message); $('role').textContent = 'بررسی دسترسی انجام نشد. برای راهنمای همکاری /cooperate را در ربات بزنید.'; });
 </script></html>

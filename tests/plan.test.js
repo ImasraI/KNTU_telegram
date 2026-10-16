@@ -70,8 +70,8 @@ test('destination resolution preserves the legacy group and honours an explicit 
   assert.deepEqual(destinationFrom(undefined, -100456), { chatId: -100456, threadId: null, source: 'legacy' });
   assert.equal(destinationFrom(null, -100456), null);          // /unbind must not fall back
   assert.equal(destinationFrom(undefined, 0), null);
-  assert.match(describeDestination(null), /No destination bound/);
-  assert.match(describeDestination({ chatId: -100, threadId: 9, source: 'bind' }), /topic 9/);
+  assert.match(describeDestination(null), /مقصد ثبت نشده/);
+  assert.match(describeDestination({ chatId: -100, threadId: 9, source: 'bind' }), /موضوع 9/);
   assert.ok(sameTarget({ chatId: -100, threadId: 9 }, { chatId: -100, threadId: 9 }));
   assert.ok(!sameTarget({ chatId: -100, threadId: 9 }, { chatId: -100, threadId: null }));
 });

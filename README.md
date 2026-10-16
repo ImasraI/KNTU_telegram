@@ -4,6 +4,12 @@ Telegram Serverless bot for [@KNTU_aidbot](https://t.me/KNTU_aidbot). It follows
 Moodle courses at <https://vc.kntu.ac.ir> for a small set of university accounts and
 posts new/changed course activities into one chosen group/topic.
 
+**Student access:** public commands and Persian menus are available to everyone.
+Personal notifications require the student's own confirmation of a course selection,
+not administrator approval. Only voluntary credential contributors need approval
+from @Arsam_alaei. See [the student experience](docs/student-experience.md) for
+registration, name matching limits, privacy, delivery behavior and deployment.
+
 - Telegram Serverless app: `app8298297292`
 - Setup Mini App: <https://app8298297292.tgcloud.ai/>
 - Bot owner (`OWNER_ID`): `747977517`, set in [`tgcloud/lib/config.js`](tgcloud/lib/config.js)

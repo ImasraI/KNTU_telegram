@@ -10,17 +10,17 @@ export default async function (input, ctx) {
   const callerId = ctx?.initData?.user?.id;
   const role = await roleOf(callerId);
   if (!canConnect(role)) {
-    throw new EndpointError('Your Telegram ID is not approved to connect an account yet. Ask the bot owner to run /approve with your ID.', { code: 'NOT_APPROVED' });
+    throw new EndpointError('برای همکاری در اتصال حساب، ابتدا از @Arsam_alaei تأیید بگیرید. استفادهٔ عمومی ربات نیازی به تأیید ندارد.', { code: 'NOT_APPROVED' });
   }
   if (!validCredential(input?.mode, input?.secret)) {
-    throw new EndpointError('Invalid credential. Paste only the MoodleSession value or a Moodle API token, not a password.', { code: 'INVALID_CREDENTIAL' });
+    throw new EndpointError('مقدار اتصال معتبر نیست. فقط مقدار MoodleSession یا توکن دانشگاه را وارد کنید؛ رمز عبور لازم نیست.', { code: 'INVALID_CREDENTIAL' });
   }
   let courses;
   try {
     courses = await connector(fetch, { mode: input.mode, secret: input.secret }).courses();
   } catch (e) {
     const code = failureCode(e);
-    throw new EndpointError(`University connection failed (${code}). Check access and the credential, then try again.`, { code });
+    throw new EndpointError(`اتصال به دانشگاه برقرار نشد. اعتبار اتصال و دسترسی را بررسی و دوباره تلاش کنید.`, { code });
   }
   let account;
   try {
@@ -30,7 +30,7 @@ export default async function (input, ctx) {
     });
   } catch (e) {
     const code = String(e?.message ?? 'SAVE_FAILED');
-    throw new EndpointError(code === 'FORBIDDEN' ? 'You can only change your own connection.' : 'Could not save the connection.', { code });
+    throw new EndpointError(code === 'FORBIDDEN' ? 'فقط اتصال متعلق به خودتان را می‌توانید تغییر دهید.' : 'ذخیرهٔ اتصال انجام نشد.', { code });
   }
   return { connected: true, account: redactAccount(account), courses: courses.length };
 }

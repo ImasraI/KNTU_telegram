@@ -31,9 +31,9 @@ export function sendTarget(destination) {
 }
 
 export function describeDestination(destination) {
-  if (!destination?.chatId) return 'No destination bound. Run /bind in the target group topic as the bot owner.';
-  const topic = destination.threadId ? ` topic ${destination.threadId}` : ' main topic';
-  return `chat ${destination.chatId} ·${topic} · source: ${destination.source}`;
+  if (!destination?.chatId) return 'مقصد ثبت نشده است. مدیر باید /bind را در گروه یا موضوع مقصد اجرا کند.';
+  const topic = destination.threadId ? `موضوع ${destination.threadId}` : 'موضوع عمومی';
+  return `گفت‌وگو ${destination.chatId} · ${topic}`;
 }
 
 export function sameTarget(a, b) {

@@ -3,7 +3,7 @@ import { OWNER_ID } from '../lib/config.js';
 import { scan } from '../lib/monitor.js';
 
 export default async function (input, ctx) {
-  if (!OWNER_ID || ctx?.initData?.user?.id !== OWNER_ID) throw new EndpointError('Owner access required', { code: 'OWNER_ONLY' });
+  if (!OWNER_ID || ctx?.initData?.user?.id !== OWNER_ID) throw new EndpointError('این بخش مخصوص مدیر ربات است.', { code: 'OWNER_ONLY' });
   const result = await scan({ reason: input?.scheduled ? 'scheduled' : 'manual' });
   if (input?.scheduled && !result.busy) {
     // A scheduled run must fail loudly when something was not covered, so the

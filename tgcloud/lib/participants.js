@@ -1,4 +1,25 @@
 import { tree, nodes, nodeText } from './content.js';
+import { identityText } from './student-policy.js';
+
+export function matchingParticipants(html, query) {
+  const doc = tree(html);
+  const table = nodes(doc, n => n.tag === 'table' && n.attrs.id === 'participants')[0];
+  if (!table) throw new Error('PARTICIPANTS_LAYOUT');
+  const matches = [];
+  const text = n => typeof n === 'string' ? n :
+    (n.attrs.role === 'img' || /(?:^|\s)accesshide(?:\s|$)/.test(n.attrs.class ?? '') ? '' : n.children.map(text).join(' '));
+  for (const row of nodes(table, n => n.tag === 'tr')) {
+    const cell = nodes(row, n => ['td', 'th'].includes(n.tag) && /(?:^|\s)c1(?:\s|$)/.test(n.attrs.class ?? ''))[0];
+    const link = cell && nodes(cell, n => n.tag === 'a' && /\/user\/(?:view|profile)\.php\?/.test(n.attrs.href ?? ''))[0];
+    if (!link) continue;
+    const name = text(link).replace(/\s+/g, ' ').trim();
+    const username = row.attrs['data-username'] ?? link.attrs['data-username'];
+    if (identityText(name) !== identityText(query) && (!username || identityText(username) !== identityText(query))) continue;
+    const id = (link.attrs.href.match(/[?&]id=(\d+)/) ?? [])[1];
+    if (id) matches.push({ id, name: name.slice(0, 100) });
+  }
+  return matches;
+}
 
 // Only retain names from rows whose role cell explicitly says استاد.
 // Other participant information is neither returned nor persisted.

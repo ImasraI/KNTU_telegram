@@ -35,15 +35,15 @@ export default async function (input, ctx) {
   const callerId = ctx?.initData?.user?.id;
   const role = await roleOf(callerId);
   if (!canConnect(role)) {
-    throw new EndpointError('Your Telegram ID is not approved yet. Ask the bot owner to run /approve with your ID.', { code: 'NOT_APPROVED' });
+    throw new EndpointError('این فرم برای همکاران تأییدشده است. راهنمای /cooperate را ببینید.', { code: 'NOT_APPROVED' });
   }
   const action = input?.action ?? 'list';
   if (action === 'list') return await view(role, callerId);
 
   const account = await accountById(String(input?.accountId ?? ''));
-  if (!account) throw new EndpointError('Unknown account.', { code: 'ACCOUNT_NOT_FOUND' });
+  if (!account) throw new EndpointError('اتصال پیدا نشد.', { code: 'ACCOUNT_NOT_FOUND' });
   if (!canManageAccount(role, callerId, account)) {
-    throw new EndpointError('You can only change your own connection.', { code: 'FORBIDDEN' });
+    throw new EndpointError('فقط اتصال متعلق به خودتان را می‌توانید تغییر دهید.', { code: 'FORBIDDEN' });
   }
   switch (action) {
     case 'enable': await setEnabled(account.id, true); break;
@@ -54,7 +54,7 @@ export default async function (input, ctx) {
       // re-announce everything another account still covers.
       await deleteAccount(account.id);
       break;
-    default: throw new EndpointError('Unknown action.', { code: 'BAD_ACTION' });
+    default: throw new EndpointError('درخواست شناخته نشد.', { code: 'BAD_ACTION' });
   }
   return await view(role, callerId);
 }

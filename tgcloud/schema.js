@@ -73,5 +73,13 @@ export const notices = table('notices', {
   info: json('info'),
 });
 
+// Public subscribers do not need contributor approval or a university credential.
+export const subscriptions = table('subscriptions', {
+  tgId: integer('tg_id').primaryKey(),
+  active: boolean('active').notNull().default(false),
+  profile: json('profile').notNull(),
+  seen: json('seen').notNull(),
+});
+
 // Your database tables go here as named exports. Deploying this file registers the
 // schema; applying the changes (a migration) updates the database.

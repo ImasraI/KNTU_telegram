@@ -13,6 +13,7 @@ import { classLine, describeBinding, parseCourseCode, courseTitle, deriveLabel }
 import { enabledAccounts, ensureMigrated, setHealth } from './accounts.js';
 import { notifyOnce } from './notify.js';
 import { noticeKey } from './notice-policy.js';
+import { deliverPersonal } from './subscriptions.js';
 
 export { getSetting, putSetting } from './settings.js';
 
@@ -52,7 +53,7 @@ async function saveSnapshot(key, items, reader) {
 function sessionText(account) {
   return ['⚠️ اتصال حساب دانشگاهی «' + (account.label || account.id) + '» منقضی شده است.',
     'دوره‌های این حساب خوانده نمی‌شوند تا زمانی که اتصال تازه‌سازی شود.',
-    'برای تازه‌سازی: در چت خصوصی ربات /setup را بزنید و «University connection» را باز کنید.',
+    'برای تازه‌سازی: در چت خصوصی ربات /setup را بزنید و «فرم خصوصی اتصال دانشگاه» را باز کنید.',
     account.code ? '(کد: ' + account.code + ')' : ''].filter(Boolean).join('\n');
 }
 
@@ -206,8 +207,10 @@ export async function scan({ reason = 'manual' } = {}) {
       await putSetting('pendingDigests', merged);
     }
 
+    const personal = await deliverPersonal(courseList(plan), lineFor);
     const result = {
       checkedAt, reason,
+      personal,
       accounts: { total: accounts.length, ok: health.filter(h => h.state === 'ok').length, failed: health.filter(h => h.state !== 'ok').length },
       courses: plan.length,
       sent: counts.sent, baselined: counts.baselined, readerChanges: counts.readerChanges, absorbed: counts.absorbed,
