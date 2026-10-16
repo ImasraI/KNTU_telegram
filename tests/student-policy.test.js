@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PUBLIC_HELP, PUBLIC_COMMANDS, identityText, selectedIds, consented, unseenItems, itemReceipt } from '../tgcloud/lib/student-policy.js';
+import { PUBLIC_HELP, PUBLIC_COMMANDS, identityText, selectedIds, consented, unseenItems, itemReceipt, validFullName, FULL_NAME_LABEL, FULL_NAME_PROMPT } from '../tgcloud/lib/student-policy.js';
 import { signature } from '../tgcloud/lib/content.js';
 import { matchingParticipants } from '../tgcloud/lib/participants.js';
 
@@ -28,4 +28,24 @@ test('personal receipts suppress history and repeat sends while retaining genuin
   assert.deepEqual(unseenItems(3, [item], seen), []);
   assert.equal(unseenItems(3, [{ ...item, dates: 'شنبه' }], seen).length, 1);
   assert.equal(unseenItems(82, [item], seen).length, 1);
+});
+test('registration asks only for the displayed full name; the login-username stage is gone', async () => {
+  const policy = await import('../tgcloud/lib/student-policy.js');
+  // The old login-username validator must no longer exist anywhere.
+  assert.equal(policy.validUsername, undefined);
+  assert.equal(FULL_NAME_LABEL, 'نام کامل در VC');
+  // Compared without the invisible ZWNJ so the wording, not an invisible char, is asserted.
+  assert.equal(FULL_NAME_PROMPT.replace(/\u200c/g, ''),
+    'نام و نام خانوادگی خود را دقیقاً همانطور که در بخش شرکتکنندگان VC نمایش داده میشود بفرستید؛ مثلاً Arsam Alaei.');
+  assert.ok(policy.FULL_NAME_HINT.includes(FULL_NAME_LABEL));
+  // The help text names the field «نام کامل در VC» and never «نام کاربری».
+  assert.match(PUBLIC_HELP, /نام کامل در VC/);
+  assert.doesNotMatch(PUBLIC_HELP, /نام کاربری/);
+  assert.doesNotMatch(policy.PRIVACY, /نام کاربری بدون/);
+  // A displayed full name needs at least two words; a bare login name is rejected.
+  assert.ok(validFullName('Arsam Alaei'));
+  assert.ok(validFullName('  علي   رضايي '));
+  assert.ok(!validFullName('Arsam'));
+  assert.ok(!validFullName(''));
+  assert.ok(!validFullName('x'.repeat(101)));
 });

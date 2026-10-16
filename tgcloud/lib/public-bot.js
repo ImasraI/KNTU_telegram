@@ -1,5 +1,5 @@
 import { api } from 'sdk';
-import { PUBLIC_HELP, PRIVACY, selectedIds, consented, validUsername } from './student-policy.js';
+import { PUBLIC_HELP, PRIVACY, selectedIds, consented, validFullName, FULL_NAME_PROMPT, FULL_NAME_HINT } from './student-policy.js';
 import { subscriber, saveSubscriber, forgetSubscriber, confirmSubscription, findStudentCourses, savedItems, registerDetected, COURSE_SUPPORT } from './subscriptions.js';
 import { directorySummary } from './monitor.js';
 import { notification } from './content.js';
@@ -115,42 +115,19 @@ export async function handlePublic(message, role) {
     return true;
   }
   if (command === '/register') {
-    const username = args.join(' ');
-    if (username && !validUsername(username)) { await reply('فقط نام کاربری VC را وارد کنید؛ رمز عبور، کوکی یا توکن نفرستید.'); return true; }
-    await saveSubscriber(tgId, { profile: { ...user?.profile, paused: false, pending: null, stage: username ? 'name' : 'username', username: username || null } });
-    await reply(username ? 'نام کاربری ثبت شد. سامانه نام ورود را در شرکت‌کنندگان نمایش نمی‌دهد؛ نام و نام خانوادگی را دقیقاً مطابق VC (با همان زبان فارسی یا لاتین) بفرستید. رمز عبور لازم نیست.'
-      : 'برای اعلان شخصی، نام کاربری ورود به VC را بفرستید؛ رمز عبور و توکن نفرستید. اطلاعات فقط برای ثبت اشتراک شما نگهداری می‌شود. /privacy برای جزئیات؛ /cancel برای لغو.');
-    return true;
+    // No login username, student number, password or token is ever requested. The
+    // only input is the name the university shows in VC Participants.
+    await saveSubscriber(tgId, { profile: { ...user?.profile, paused: false, pending: null, stage: 'name', username: null } });
+    const name = args.join(' ').trim();
+    if (!name) { await reply(FULL_NAME_PROMPT + '\n' + FULL_NAME_HINT); return true; }
+    return await registerByFullName(tgId, name, reply);
   }
-  if (!text.startsWith('/') && user?.profile?.stage === 'username') {
-    if (!validUsername(text)) { await reply('فقط نام کاربری VC را وارد کنید، بدون فاصله، رمز عبور یا توکن.'); return true; }
-    await saveSubscriber(tgId, { profile: { ...user.profile, username: text, stage: 'name' } });
-    await reply('حالا نام و نام خانوادگی را دقیقاً مطابق فهرست شرکت‌کنندگان VC بفرستید. نام کاربری ورود در این فهرست نمایش داده نمی‌شود.');
-    return true;
+  // A user left waiting at the removed login-username stage is asked only for the
+  // displayed full name, so an in-progress registration never gets stuck.
+  if (!text.startsWith('/') && ['username', 'name'].includes(user?.profile?.stage)) {
+    return await registerByFullName(tgId, text, reply);
   }
-  if (command === '/name' || (!text.startsWith('/') && user?.profile?.stage === 'name')) {
-    const name = command === '/name' ? args.join(' ') : text;
-    if (name.length < 3 || name.length > 100 || name.split(/\s+/).length < 2) {
-      await reply('نام و نام خانوادگی کامل مطابق VC را بفرستید، مثلاً /name Arsam Alaei'); return true;
-    }
-    if (Date.now() - (user?.profile?.lookupAt ?? 0) < 60000) { await reply('برای جست‌وجوی بعدی یک دقیقه صبر کنید.'); return true; }
-    await saveSubscriber(tgId, { profile: { ...user?.profile, stage: null, lookupAt: Date.now(), pending: null } });
-    await reply('در حال جست‌وجوی نام شما در درس‌های تحت پوشش…');
-    let found;
-    try { found = await findStudentCourses(name); }
-    catch {
-      await reply('جست‌وجو اکنون ممکن نیست یا جست‌وجوی دیگری در حال اجراست. یک دقیقه بعد با /name نام کامل دوباره امتحان کنید.\n' + COURSE_SUPPORT);
-      return true;
-    }
-    if (!found.courses.length) {
-      await registerDetected(tgId, found, name);
-      await reply((found.ambiguous ? 'چند نفر هم‌نام پیدا شدند و برای جلوگیری از اشتباه، درسی به حساب شما متصل نشد.'
-        : 'ثبت‌نام شما انجام شد؛ فعلاً درسی با این نام پیدا نشد. درس‌های تازهٔ تحت پوشش هم خودکار بررسی می‌شوند.') + '\n' + COURSE_SUPPORT, MENU);
-      return true;
-    }
-    user = await subscriber(tgId);
-    await propose(tgId, user, found.courses, found.name, reply, found.incomplete, found.participantId); return true;
-  }
+  if (command === '/name') return await registerByFullName(tgId, args.join(' '), reply);
   if (command === '/select') {
     const directory = await directorySummary();
     const ids = selectedIds(args, directory.courses);
@@ -159,6 +136,38 @@ export async function handlePublic(message, role) {
     return true;
   }
   return false;
+}
+
+// The whole registration step. The displayed VC full name is the only input: a
+// plausible name is matched exactly against Participants (never guessed — an
+// ambiguous match registers nothing) and every matched course is added
+// automatically, with no selection or confirmation screen.
+async function registerByFullName(tgId, name, reply) {
+  const user = await subscriber(tgId);
+  const clean = String(name ?? '').trim();
+  if (!validFullName(clean)) {
+    await saveSubscriber(tgId, { profile: { ...user?.profile, stage: 'name', username: null } });
+    await reply(FULL_NAME_PROMPT + '\n' + FULL_NAME_HINT);
+    return true;
+  }
+  if (Date.now() - (user?.profile?.lookupAt ?? 0) < 60000) { await reply('برای جست‌وجوی بعدی یک دقیقه صبر کنید.'); return true; }
+  await saveSubscriber(tgId, { profile: { ...user?.profile, stage: null, lookupAt: Date.now(), pending: null, username: null } });
+  await reply('در حال جست‌وجوی نام شما در درس‌های تحت پوشش…');
+  let found;
+  try { found = await findStudentCourses(clean); }
+  catch {
+    await reply('جست‌وجو اکنون ممکن نیست یا جست‌وجوی دیگری در حال اجراست. یک دقیقه بعد دوباره نام کامل را بفرستید.\n' + COURSE_SUPPORT);
+    return true;
+  }
+  if (!found.courses.length) {
+    await registerDetected(tgId, found, clean);
+    await reply((found.ambiguous ? 'چند نفر هم‌نام پیدا شدند و برای جلوگیری از اشتباه، درسی به حساب شما متصل نشد.'
+      : 'ثبت‌نام شما انجام شد؛ فعلاً درسی با این نام پیدا نشد. درس‌های تازهٔ تحت پوشش هم خودکار بررسی می‌شوند.') + '\n' + COURSE_SUPPORT, MENU);
+    return true;
+  }
+  const live = await subscriber(tgId);
+  await propose(tgId, live, found.courses, found.name, reply, found.incomplete, found.participantId);
+  return true;
 }
 
 async function propose(tgId, user, ids, name, reply, incomplete, participantId = user?.profile?.participantId) {

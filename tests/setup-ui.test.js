@@ -7,6 +7,8 @@ test('Persian cooperation form has valid JavaScript and accurate participant pri
   assert.match(html, /lang="fa" dir="rtl"/);
   assert.doesNotMatch(html, /participant lists are never collected|without risk|Checking access/);
   assert.doesNotMatch(html, /id="mode"|value="token"|نوع اتصال را انتخاب کنید|مدیر دارای دسترسی مدیریتی/);
+  // The form must never label a field «نام کاربری»; only the VC display name is used.
+  assert.doesNotMatch(html, /نام کاربری/);
   assert.match(html, /فهرست کامل دانشجویان ذخیره یا منتشر نمی‌شود/);
   const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
   assert.equal(inline.length, 1);

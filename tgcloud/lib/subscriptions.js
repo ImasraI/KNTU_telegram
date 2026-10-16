@@ -57,7 +57,8 @@ export async function confirmSubscription(tgId) {
   for (const course of selected) for (const item of personalItems(await savedItems(course))) seen[itemReceipt(course.id, item)] = signature(item);
   await saveSubscriber(tgId, { active: true, seen, profile: {
     ...row.profile, paused: false, pending: null, registered: true,
-    username: row.profile.username ?? null, name: pending.name ?? null,
+    // No login username is ever collected; clear any value a legacy rule stored.
+    username: null, name: pending.name ?? null,
     courses: selected.map(c => String(c.id)), confirmed: true, confirmedAt: Date.now(),
   } });
   return true;

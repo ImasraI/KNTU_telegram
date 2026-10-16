@@ -12,7 +12,14 @@ restricted to approved contributors and the owner.
 
 ## Personal registration
 
-`/register` collects a VC username, then asks for the exact displayed full name.
+`/register` asks for exactly one thing: the name the university shows for you in
+VC Participants, for example `Arsam Alaei`. The requested field is labelled
+«نام کامل در VC» so it is never confused with login credentials; no login
+username, student number, password, cookie or token is asked for, validated or
+stored. The same full name can be sent directly with `/register Arsam Alaei` in one
+message. Someone still waiting at the removed login-username stage of an earlier
+version is asked only for the displayed full name, so an in-progress registration
+never gets stuck; the old value is dropped rather than kept.
 KNTU's Participants page exposes names and Moodle user ids, not login usernames.
 The bot does not pretend that a Moodle id is a username. Exact normalized full
 name matches (including later participant pages) activate courses automatically.

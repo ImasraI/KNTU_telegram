@@ -69,16 +69,23 @@ await entry.link((specifier, parent) => load(specifier.startsWith('.') ? new URL
 await entry.evaluate();
 const { handlePublic } = entry.namespace;
 const sub = modules.get(new URL('lib/subscriptions.js', root).href).namespace;
+const policy = modules.get(new URL('lib/student-policy.js', root).href).namespace;
 const send = async text => handlePublic({ chat: { id: 123, type: 'private' }, from: { id: 123 }, text }, 'none');
 
 for (const command of ['/start', '/help', '/courses', '/assignment', '/assignments', '/exams']) assert.equal(await send(command), true);
 assert.ok(messages.some(m => m.text.includes('تکلیف')));
 assert.ok(messages.every(m => !m.text.includes('/approve') && !m.text.includes('/admin')));
 assert.equal(await handlePublic({ chat: { id: -10, type: 'group' }, from: { id: 123 }, text: '/courses' }, 'none'), true);
-await send('/register student123');
+// /register asks only for the displayed VC full name — no login-username stage.
+await send('/register');
 assert.equal(records.get(123).active, false);
 assert.equal(records.get(123).profile.stage, 'name');
-await send('/name Student Name');
+assert.equal(records.get(123).profile.username, null);
+assert.ok(messages.at(-1).text.includes(policy.FULL_NAME_PROMPT));
+assert.ok(messages.at(-1).text.includes('نام کامل در VC'));
+assert.ok(!messages.some(m => /نام کاربری ورود به VC را بفرستید/.test(m.text)));
+// /register <full name> registers directly, with no selection or confirmation step.
+await send('/register Student Name');
 assert.deepEqual(records.get(123).profile.courses, ['3']);
 assert.equal(records.get(123).profile.pending, null);
 assert.equal(records.get(123).profile.participantId, '42');
@@ -103,7 +110,8 @@ await sub.saveSubscriber(456, { active: true, profile: { confirmed: false, cours
 assert.equal((await sub.deliverPersonal([course], () => '')).sent, 0);
 await sub.saveSubscriber(456, { active: true, profile: { confirmed: true, courses: ['82'] }, seen: {} });
 assert.equal((await sub.deliverPersonal([course], () => '')).sent, 0);
-await send('/register student123');
+// Legacy /register + /cancel + /confirm compatibility (no username is collected now).
+await send('/register');
 await send('/cancel');
 assert.equal(records.get(123).profile.pending, null);
 await send('/confirm');
@@ -127,6 +135,14 @@ assert.equal((await sub.deliverPersonal([course], () => '')).sent, 1); // Active
 await sub.saveSubscriber(789, { active: true, profile: { registered: true, name: 'Same Name', participantId: '99', courses: [] }, seen: {} });
 await sub.refreshStudentCoverage(plan, { readRoster: async () => [{ id: '100', name: 'Same Name' }] });
 assert.deepEqual(records.get(789).profile.courses, []); // Known Moodle id prevents homonym matches.
+// A user still waiting at the removed username stage is asked only for the full name.
+await sub.saveSubscriber(321, { active: false, profile: { stage: 'username', username: 'legacy_login' }, seen: {} });
+const legacySend = text => handlePublic({ chat: { id: 321, type: 'private' }, from: { id: 321 }, text }, 'none');
+assert.equal(await legacySend('Student Name'), true);
+assert.deepEqual(records.get(321).profile.courses, ['3']);
+assert.equal(records.get(321).profile.participantId, '42');
+assert.equal(records.get(321).profile.username, null); // the old login name is dropped, not kept
+assert.equal(records.get(321).active, true);
 await send('/cooperate');
 assert.ok(messages.every(m => m.text.length <= 4096));
 assert.ok(messages.some(m => m.text.includes('F12')));

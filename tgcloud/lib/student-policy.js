@@ -4,8 +4,18 @@ import { signature } from './content.js';
 export function identityText(value) {
   return normalizeSpaces(toAsciiDigits(value)).toLowerCase();
 }
-export function validUsername(value) {
-  return /^[\w.@-]{2,100}$/.test(value) && !/^[a-f0-9]{32}$/i.test(value) && !/^[A-Za-z0-9_-]{24,}$/.test(value);
+// Registration asks for one thing only: the name the university displays in VC
+// Participants (for example "Arsam Alaei"). No login username, student number,
+// password, cookie or token is requested, validated or stored. The displayed full
+// name is what the Participants page exposes, so it is what can be matched.
+export const FULL_NAME_LABEL = 'نام کامل در VC';
+export const FULL_NAME_PROMPT = 'نام و نام خانوادگی خود را دقیقاً همان‌طور که در بخش شرکت‌کنندگان VC نمایش داده می‌شود بفرستید؛ مثلاً Arsam Alaei.';
+export const FULL_NAME_HINT = `فقط «${FULL_NAME_LABEL}» لازم است؛ رمز عبور، نام کاربری ورود یا توکن را نفرستید. /privacy برای جزئیات؛ /cancel برای لغو.`;
+// A displayed full name is at least two words and a plausible length. This is not
+// identity verification; it only rejects obvious non-names before a lookup runs.
+export function validFullName(value) {
+  const clean = normalizeSpaces(value);
+  return clean.length >= 3 && clean.length <= 100 && clean.split(/\s+/).length >= 2;
 }
 export function selectedIds(values, covered) {
   const allowed = new Set(covered.map(c => String(c.id)));
@@ -26,7 +36,7 @@ export const PUBLIC_COMMANDS = [
   { command: 'courses', description: 'فهرست درس‌های تحت پوشش' },
   { command: 'assignments', description: 'تکلیف‌های ثبت‌شده' },
   { command: 'exams', description: 'امتحان‌ها و اطلاعیه‌های آزمون' },
-  { command: 'register', description: 'ثبت‌نام و شناسایی خودکار درس‌ها' },
+  { command: 'register', description: 'ثبت‌نام با نام کامل در VC و شناسایی خودکار درس‌ها' },
   { command: 'mycourses', description: 'درس‌ها و وضعیت اعلان شخصی من' },
   { command: 'stop', description: 'توقف اعلان‌های خصوصی' },
   { command: 'resume', description: 'فعال‌کردن دوباره اعلان‌های خصوصی' },
@@ -37,14 +47,14 @@ export const PUBLIC_COMMANDS = [
 export const PUBLIC_HELP = ['🎓 به ربات اطلاع‌رسانی درس‌های دانشگاه خوش آمدید!',
   'دیدن درس‌ها و اطلاعیه‌ها برای همه آزاد است و نیازی به تأیید یا ارائهٔ توکن ندارد.',
   ...PUBLIC_COMMANDS.map(c => `/${c.command} — ${c.description}`),
-  '', 'پس از /register، نام کاربری و نام کامل مطابق VC را بفرستید؛ درس‌ها شناسایی و اعلان شخصی خودکار فعال می‌شود.',
+  '', 'پس از /register فقط «نام کامل در VC» را بفرستید؛ درس‌ها خودکار شناسایی و اعلان شخصی فعال می‌شود.',
   'اگر فهرست درس‌ها ناقص یا نادرست است، به @Arsam_alaei پیام بدهید. درس‌های تازهٔ تحت پوشش هم خودکار برای شما بررسی می‌شوند.',
   '/cancel — لغو ثبت؛ /forget — حذف اطلاعات اشتراک شخصی',
   'اطلاعات مربوط به آخرین بررسی است؛ بررسی خودکار هر ۳۰ دقیقه انجام می‌شود.',
 ].join('\n');
 export const PRIVACY = ['🔐 حریم خصوصی',
   'برای مشاهدهٔ عمومی یا دریافت اعلان شخصی، رمز عبور یا توکن دانشگاه لازم نیست.',
-  'در اشتراک شخصی، شناسهٔ تلگرام، نام/نام کاربری اعلام‌شده، شناسهٔ شرکت‌کننده، درس‌های شناسایی‌شده و سابقهٔ ارسال نگهداری می‌شود. نام دانشجویان دیگر منتشر نمی‌شود.',
+  'در اشتراک شخصی، شناسهٔ تلگرام، «نام کامل در VC» اعلام‌شده، شناسهٔ شرکت‌کننده، درس‌های شناسایی‌شده و سابقهٔ ارسال نگهداری می‌شود. رمز عبور یا نام کاربری ورود ذخیره نمی‌شود و نام دانشجویان دیگر منتشر نمی‌شود.',
   'توکن یا کوکی فقط برای همکاری داوطلبانه و پس از تأیید @Arsam_alaei دریافت می‌شود؛ فقط در فرم خصوصی مینی‌اپ وارد کنید، نه در چت.',
   'اعتبار اتصال در پایگاه دادهٔ خصوصی ربات روی تلگرام ذخیره می‌شود و هنگام خواندن سامانه برای vc.kntu.ac.ir ارسال می‌شود. مقدار آن در گروه، پاسخ ربات یا مخزن گیت‌هاب منتشر نمی‌شود.',
   'رمز عبور لازم نیست. ربات نمره‌ها، پاسخ تکالیف یا پیام‌های خصوصی شما را جمع‌آوری یا منتشر نمی‌کند.',
