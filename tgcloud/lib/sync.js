@@ -1,6 +1,32 @@
 import { changeSet, mergeBaseline } from './content.js';
 import { courseKey } from './plan.js';
 
+// Defend the delivery boundary even if a connector returns repeated records or
+// represents the same Moodle module id as a string for one account.
+function uniqueItems(items) {
+  const unique = new Map();
+  for (const item of items) {
+    const id = /^\d+$/.test(String(item.id)) ? Number(item.id) : item.id;
+    const normalized = { ...item, id };
+    const previous = unique.get(String(id));
+    unique.set(String(id), previous ? mergeBaseline([previous], [normalized])[0] : normalized);
+  }
+  return [...unique.values()];
+}
+
+function uniqueCourses(courses) {
+  const unique = new Map();
+  for (const course of courses) {
+    const key = courseKey(course);
+    const previous = unique.get(key);
+    unique.set(key, {
+      ...(previous ?? course),
+      readers: [...new Set([...(previous?.readers ?? []), ...(course.readers ?? [])])],
+    });
+  }
+  return [...unique.values()];
+}
+
 function failureCode(error) {
   const message = String(error?.message ?? '');
   return /^[A-Z][A-Z_0-9]*$/.test(message) ? message : 'COURSE_SCAN_FAILED';
@@ -24,12 +50,14 @@ export async function syncCourses({ courses, read, load, save, send, onAttemptEr
     throw last;
   }
 
-  for (const course of courses) {
+  for (const course of uniqueCourses(courses)) {
     const key = courseKey(course);
     try {
-      const { items: current, reader } = await readCourse(course);
+      const { items, reader } = await readCourse(course);
+      const current = uniqueItems(items);
       const loaded = await load(key);
       const previous = Array.isArray(loaded) ? { items: loaded } : loaded ?? {};
+      if (previous.items !== undefined) previous.items = uniqueItems(previous.items);
       if (previous.items === undefined) {
         // Newly discovered course: record what exists now, announce nothing.
         await save(key, current, reader);

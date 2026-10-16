@@ -132,3 +132,27 @@ test('every failed course is reported with its code and nothing else is announce
   assert.equal(result.baselined, 0);
   assert.equal(result.sent, 0);
 });
+
+test('two accounts sharing a course send each new assignment only once, including repeated module records', async () => {
+  const f = fixture({ [KEY]: { items: [], reader: 'acc_a' } }, [
+    { ...MATH, readers: ['acc_a'] },
+    { ...MATH, id: '3', readers: ['acc_b'] },
+  ]);
+  const attempts = [];
+  f.options.read = async (_course, reader) => {
+    attempts.push(reader);
+    if (reader === 'acc_a') throw new Error('UNIVERSITY_LOGIN_REQUIRED');
+    return [item(1), { ...item(1), id: '1' }];
+  };
+  assert.equal((await syncCourses(f.options)).sent, 1);
+  assert.deepEqual(attempts, ['acc_a', 'acc_b']);
+  assert.equal((await syncCourses(f.options)).sent, 0);
+  assert.equal(f.messages.length, 1);
+  assert.equal(f.state.get(KEY).items.length, 1);
+});
+
+test('distinct course ids with the same name retain their own assignments', async () => {
+  const other = { ...MATH, id: 4 };
+  const f = fixture({ [KEY]: [], [courseKey(other)]: [] }, [MATH, other]);
+  assert.equal((await syncCourses(f.options)).sent, 2);
+});
