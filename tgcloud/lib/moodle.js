@@ -69,7 +69,7 @@ export function connector(fetcher, credentials) {
     async participantDirectory(course) {
       const teachers = new Set();
       const people = await this.findParticipants(course, null, teachers);
-      return {people, professorName: teachers.size === 1 ? [...teachers][0] : null};
+      return {people, professorName: teachers.size === 1 ? [...teachers][0] : null, professorCount: teachers.size};
     },
     async participants(course) {
       return await this.findParticipants(course, null);

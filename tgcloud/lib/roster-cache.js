@@ -9,15 +9,17 @@ import { identityText } from './student-policy.js';
 export async function courseRoster(course, { force = false, readers, load } = {}) {
   const key = 'participantRoster:' + courseKey(course);
   const cached = await getSetting(key);
-  if (!force && cached?.version === 1 && Array.isArray(cached.people)) return cached.people;
-  let people, professorName;
+  const professor = await getSetting('participantProfessor:' + courseKey(course));
+  // Upgrade rosters saved before professor extraction existed, once only.
+  if (!force && cached?.version === 1 && Array.isArray(cached.people) && professor?.at) return cached.people;
+  let people, professorName, professorCount;
   if (load) people = await load(course);
   else {
     const accounts = (await enabledAccounts()).filter(a => a.mode === 'session' && (!readers?.length || readers.includes(a.id)));
     for (const account of accounts) {
       try {
         const directory = await connector(fetch, account).participantDirectory(course);
-        people = directory.people; professorName = directory.professorName; break;
+        people = directory.people; professorName = directory.professorName; professorCount = directory.professorCount; break;
       }
       catch { /* keep a previous complete cache intact and try another reader */ }
     }
@@ -25,7 +27,7 @@ export async function courseRoster(course, { force = false, readers, load } = {}
   if (!Array.isArray(people)) throw new Error('PARTICIPANT_ROSTER_UNAVAILABLE');
   const clean = [...new Map(people.filter(p => p.id && p.name).map(p => [String(p.id), {id: String(p.id), name: String(p.name).slice(0,100)}])).values()];
   await putSetting(key, { version: 1, fetchedAt: Date.now(), people: clean });
-  if (professorName !== undefined) await putSetting('participantProfessor:' + courseKey(course), {name:professorName, at:Date.now()});
+  if (professorName !== undefined) await putSetting('participantProfessor:' + courseKey(course), {name:professorName, count:professorCount, at:Date.now()});
   return clean;
 }
 
@@ -55,7 +57,8 @@ export async function rosterCacheStatus() {
   const result = [];
   for (const course of courses) {
     const cached = await getSetting('participantRoster:' + courseKey(course));
-    result.push({courseId:course.id, cached:cached?.version === 1 && Array.isArray(cached.people), participants:cached?.people?.length ?? 0});
+    const professor = await getSetting('participantProfessor:' + courseKey(course));
+    result.push({courseId:course.id, professor:professor?.name ?? null, professorCount:professor?.count ?? null, cached:cached?.version === 1 && Array.isArray(cached.people), participants:cached?.people?.length ?? 0});
   }
   return result;
 }
