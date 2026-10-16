@@ -1,4 +1,5 @@
 import { api } from 'sdk';
+import { refreshRosters } from '../lib/roster-cache.js';
 import { OWNER_ID, SETUP_APP_URL } from '../lib/config.js';
 import { getSetting, putSetting } from '../lib/settings.js';
 import { roleOf, visibleAccounts, approveContributor, revokeContributor } from '../lib/accounts.js';
@@ -16,7 +17,7 @@ const CLASS_HELP = ['تنظیم کلاس (فقط مدیر):', '/classes — فه
   '/class 3 time clear — بازگشت به شماره', '/class 3 detect — تازه‌سازی نام استاد',
   '/class 3 clear — حذف تنظیم دستی'].join('\n');
 const ADMIN_HELP = ['مدیریت ربات:', '/setup — اتصال دانشگاه', '/check — بررسی فوری',
-  '/status — وضعیت اتصال‌ها', '/accounts — حساب‌های همکاری', '/classes — تنظیم کلاس‌ها',
+  '/refreshparticipants [شماره درس] — تازه‌سازی فهرست شرکت‌کنندگان', '/status — وضعیت اتصال‌ها', '/accounts — حساب‌های همکاری', '/classes — تنظیم کلاس‌ها',
   '/approve شناسه نام — تأیید همکار', '/revoke شناسه — لغو همکاری',
   '/bind — ثبت مقصد در گروه یا موضوع', '/unbind — حذف مقصد', '/destination — مقصد فعلی',
   '/digest — انتشار نمای اولیهٔ درس‌ها', CLASS_HELP].join('\n');
@@ -71,6 +72,12 @@ export default async function (message) {
       }
       const result = await revokeContributor(target);
       return await reply(`همکاری لغو و ${result.disabled} اتصال غیرفعال شد. اشتراک عمومی و اعلان شخصی کاربر مستقل است.`);
+    }
+    if (command === '/refreshparticipants') {
+      if (args.length && !/^[1-9]\d*$/.test(args[0])) return await reply('شماره درس را وارد کنید یا برای همهٔ درس‌ها /refreshparticipants را بزنید.');
+      await reply('در حال تازه‌سازی فهرست‌های خصوصی شرکت‌کنندگان…');
+      const result = await refreshRosters(args[0]);
+      return await reply(`${result.refreshed} فهرست تازه شد؛ ${result.failed} خطا. فهرست قبلی درس‌های ناموفق حفظ شد.`);
     }
     if (command === '/check') {
       const result = await scan({ reason: 'command' });

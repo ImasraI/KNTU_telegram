@@ -66,6 +66,9 @@ export function connector(fetcher, credentials) {
     return body;
   }
   return {
+    async participants(course) {
+      return await this.findParticipants(course, null);
+    },
     async findParticipant(course, query) {
       return await this.findParticipants(course, [{ name: query }]);
     },

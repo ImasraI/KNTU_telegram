@@ -10,8 +10,8 @@ export function matchingParticipantsMany(html, queries) {
   const table = nodes(doc, n => n.tag === 'table' && n.attrs.id === 'participants')[0];
   if (!table) throw new Error('PARTICIPANTS_LAYOUT');
   const matches = [];
-  const wantedNames = new Set(queries.filter(q => !q.id).map(q => identityText(q.name)));
-  const wantedIds = new Set(queries.filter(q => q.id).map(q => String(q.id)));
+  const wantedNames = new Set((queries ?? []).filter(q => !q.id).map(q => identityText(q.name)));
+  const wantedIds = new Set((queries ?? []).filter(q => q.id).map(q => String(q.id)));
   const text = n => typeof n === 'string' ? n :
     (n.attrs.role === 'img' || /(?:^|\s)accesshide(?:\s|$)/.test(n.attrs.class ?? '') ? '' : n.children.map(text).join(' '));
   for (const row of nodes(table, n => n.tag === 'tr')) {
@@ -21,14 +21,14 @@ export function matchingParticipantsMany(html, queries) {
     const name = text(link).replace(/\s+/g, ' ').trim();
     const username = row.attrs['data-username'] ?? link.attrs['data-username'];
     const id = (link.attrs.href.match(/[?&]id=(\d+)/) ?? [])[1];
-    if (!wantedIds.has(id) && !wantedNames.has(identityText(name)) && (!username || !wantedNames.has(identityText(username)))) continue;
+    if (queries !== null && !wantedIds.has(id) && !wantedNames.has(identityText(name)) && (!username || !wantedNames.has(identityText(username)))) continue;
     if (id) matches.push({ id, name: name.slice(0, 100) });
   }
   return matches;
 }
 
 // Only retain names from rows whose role cell explicitly says استاد.
-// Other participant information is neither returned nor persisted.
+// This professor extractor returns only teacher names and pagination links.
 export function participantProfessors(html) {
   const doc = tree(html);
   const table = nodes(doc, n => n.tag === 'table' && n.attrs.id === 'participants')[0];

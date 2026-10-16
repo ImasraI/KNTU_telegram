@@ -5,6 +5,7 @@ import { enabledAccounts } from './accounts.js';
 import { getSetting } from './settings.js';
 import { connector } from './moodle.js';
 import { courseKey } from './plan.js';
+import { courseRoster, matchRoster } from './roster-cache.js';
 import { courseTitle } from './classes.js';
 import { signature, notification } from './content.js';
 import { personalItems, itemReceipt, unseenItems, consented, identityText, validFullName } from './student-policy.js';
@@ -126,7 +127,7 @@ export async function findStudentCourses(query) {
     let read = false;
     for (const account of accounts) {
       try {
-        const found = await connector(fetch, account).findParticipant(course, query);
+        const found = matchRoster(await courseRoster(course), [{name:query}]);
         read = true;
         for (const person of found) { people.add(person.id); name = person.name; }
         if (found.length) matches.push(String(course.id));
@@ -162,7 +163,6 @@ export async function refreshRegistration(tgId) {
 
 export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(), budgetMs = 45000, tgId } = {}) {
   const users = (await db.select().from(subscriptions).all()).filter(user => tgId === undefined || user.tgId === tgId);
-  const accounts = readRoster ? [] : (await enabledAccounts()).filter(a => a.mode === 'session');
   const coverageEpoch = Number(await getSetting('coverageRefreshAt')) || 0;
   let added = 0, checked = 0, failed = 0, incomplete = false;
   const pendingMatches = new Map();
@@ -178,10 +178,8 @@ export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(
     if (readRoster) {
       try { people = await readRoster(entry.course, queries); } catch { failed++; continue; }
     } else {
-      for (const account of accounts.filter(a => !entry.readers?.length || entry.readers.includes(a.id))) {
-        try { people = await connector(fetch, account).findParticipants(entry.course, queries); break; }
-        catch { /* try another reader; leave failures eligible for next scan */ }
-      }
+      try { people = matchRoster(await courseRoster(entry.course, {readers: entry.readers}), queries); }
+      catch { /* leave the lookup pending; cached successful rosters are retained */ }
     }
     if (!people) { failed++; continue; }
     checked++;

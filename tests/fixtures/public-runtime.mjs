@@ -40,6 +40,7 @@ const api = { async sendMessage(input) {
 } };
 const context = createContext({ console, Date, Map, Set, Number, String, JSON, Math });
 const modules = new Map();
+const privateSettings = new Map();
 const overrides = new Map([
   ['sdk', { db, api, fetch: async (url, options) => {
     universityRequests++;
@@ -50,7 +51,7 @@ const overrides = new Map([
   ['sdk/db', { eq: (column, value) => ({ column, value }), sql: () => ({}) }],
   [new URL('schema.js', root).href, { subscriptions: subTable, snapshots: snapTable }],
   [new URL('lib/accounts.js', root).href, { enabledAccounts: async () => [{ id: 'acc_a', mode: 'session', secret: 'TEST' }] }],
-  [new URL('lib/settings.js', root).href, { getSetting: async key => key === 'courses' ? [course] : undefined }],
+  [new URL('lib/settings.js', root).href, { getSetting: async key => key === 'courses' ? [course] : privateSettings.get(key), putSetting: async (key,value) => privateSettings.set(key,value) }],
   [new URL('lib/monitor.js', root).href, { directorySummary: async () => ({ courses: [{ id: 3, name: 'ریاضی', line: '🏫 کلاس 11' }] }) }],
 ]);
 async function load(id) {
@@ -172,4 +173,13 @@ await send('/cooperate');
 assert.ok(messages.every(m => m.text.length <= 4096));
 assert.ok(messages.some(m => m.text.includes('F12')));
 assert.ok(messages.some(m => m.text.includes('ستون Value')));
+const rosterCache = modules.get(new URL('lib/roster-cache.js', root).href).namespace;
+const cachedRequests = universityRequests;
+await rosterCache.courseRoster(course);
+await rosterCache.courseRoster(course);
+assert.equal(universityRequests, cachedRequests, 'persistent roster cache avoids university requests');
+await rosterCache.courseRoster(course, {force:true});
+assert.ok(universityRequests > cachedRequests, 'owner refresh fetches a new complete roster');
+await assert.rejects(() => rosterCache.courseRoster(course, {force:true, load:async () => {throw new Error('offline');}}));
+assert.equal((await rosterCache.courseRoster(course))[0].name, 'Student Name', 'failed refresh preserves previous roster');
 console.log('Automatic registration, new coverage, paused users, private retry and Persian guidance passed.');
