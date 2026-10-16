@@ -38,3 +38,13 @@ export async function refreshRosters(courseId) {
   if (refreshed) await putSetting('coverageRefreshAt', Date.now());
   return { refreshed, failed };
 }
+
+export async function rosterCacheStatus() {
+  const courses = (await getSetting('courses')) ?? [];
+  const result = [];
+  for (const course of courses) {
+    const cached = await getSetting('participantRoster:' + courseKey(course));
+    result.push({courseId:course.id, cached:cached?.version === 1 && Array.isArray(cached.people), participants:cached?.people?.length ?? 0});
+  }
+  return result;
+}
