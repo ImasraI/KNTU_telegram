@@ -78,6 +78,8 @@ export async function handlePublic(message, role) {
     return true;
   }
   if (!privateChat) return false;
+  // Admin commands must not depend on a personal-subscription database read.
+  if (command.startsWith('/') && !PRIVATE.has(command)) return false;
   let user = await subscriber(tgId);
   if (command === '/forget') {
     await forgetSubscriber(tgId);
