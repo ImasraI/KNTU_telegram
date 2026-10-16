@@ -4,8 +4,11 @@ export const OWNER_ID = 747977517;
 // wins. A zero value prevents sending until a destination is bound.
 export const GROUP_ID = 0;
 export const BASE = 'https://vc.kntu.ac.ir';
-// Deployed setup Mini App (printed by `tgcloud push`).
+// Deployed Mini Apps (printed by `tgcloud push`). The public student app is served
+// from the host root; the protected cooperation/admin form keeps its own path
+// under it, so one push publishes both and neither URL can drift from the other.
 export const MINI_APP_URL = 'https://app8298297292.tgcloud.ai/';
+export const SETUP_APP_URL = 'https://app8298297292.tgcloud.ai/setup/';
 // The only university origin this bot talks to. Requests to any other origin are
 // refused before they are made (see lib/moodle.js).
 export const ORIGIN = BASE;

@@ -6,7 +6,7 @@ import { getSetting } from './settings.js';
 import { connector } from './moodle.js';
 import { courseKey } from './plan.js';
 import { signature, notification } from './content.js';
-import { personalItems, itemReceipt, unseenItems, consented, identityText } from './student-policy.js';
+import { personalItems, itemReceipt, unseenItems, consented, identityText, validFullName } from './student-policy.js';
 
 export const COURSE_SUPPORT = 'اگر فهرست درس‌ها ناقص یا نادرست است، به @Arsam_alaei پیام بدهید.';
 
@@ -62,6 +62,47 @@ export async function confirmSubscription(tgId) {
     courses: selected.map(c => String(c.id)), confirmed: true, confirmedAt: Date.now(),
   } });
   return true;
+}
+
+// Notification controls shared by the chat commands and the Mini App, so both
+// paths pause, resume and delete identically. Resume always seeds the current
+// baseline, which is what keeps a returning reader from a flood of history.
+export async function stopStudent(tgId) {
+  const user = await subscriber(tgId);
+  if (!user) return { state: 'not-registered' };
+  await saveSubscriber(tgId, { active: false, profile: { ...user.profile, paused: true, stage: null, pending: null } });
+  return { state: 'stopped' };
+}
+
+export async function resumeStudent(tgId) {
+  const user = await subscriber(tgId);
+  if (!user || (!consented(user.profile) && !user.profile?.registered)) return { state: 'not-registered' };
+  if (!user.profile.courses?.length) {
+    await saveSubscriber(tgId, { active: true, profile: { ...user.profile, paused: false } });
+    return { state: 'no-courses' };
+  }
+  await saveSubscriber(tgId, { profile: { ...user.profile, pending: { courses: user.profile.courses, name: user.profile.name, at: Date.now() } } });
+  return { state: (await confirmSubscription(tgId)) ? 'resumed' : 'failed' };
+}
+
+// The whole registration step, shared by /register in the chat and the Mini App.
+// The displayed VC full name is the only input: a plausible name is matched
+// exactly against Participants and every match is registered automatically, with
+// no selection or confirmation screen. Returns a state instead of a reply so a
+// caller can phrase it for its own surface.
+export async function registerStudent(tgId, name) {
+  const clean = String(name ?? '').trim();
+  if (!validFullName(clean)) return { state: 'name-invalid' };
+  const user = await subscriber(tgId);
+  if (Date.now() - (user?.profile?.lookupAt ?? 0) < 60000) return { state: 'cooldown' };
+  await saveSubscriber(tgId, { profile: { ...user?.profile, stage: null, lookupAt: Date.now(), pending: null, username: null } });
+  let found;
+  try { found = await findStudentCourses(clean); }
+  catch { return { state: 'busy' }; }
+  // registerDetected refuses to recreate a row deleted during the lookup, so a
+  // /forget or an app deletion mid-search wins over the in-flight result.
+  const registered = await registerDetected(tgId, found, clean);
+  return { state: registered ? 'registered' : 'gone', found };
 }
 
 // Search only exact matches, never return rosters. Approval to contribute a

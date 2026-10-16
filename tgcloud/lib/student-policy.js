@@ -25,6 +25,14 @@ export function selectedIds(values, covered) {
 export function personalItems(items) {
   return items.filter(item => ['assign', 'quiz', 'resource', 'folder', 'forum', 'page', 'book'].includes(item.kind));
 }
+// The public contact for an incomplete or wrong course list, shared by the chat
+// replies and the Mini App so both point at the same person.
+export const CONTACT = '@Arsam_alaei';
+// Moodle files an exam as a quiz module, but KNTU also announces exam dates in a
+// forum post, so the name is what decides. Shared by the chat listing and the app.
+export function isExam(item) {
+  return item?.kind === 'quiz' || /آزمون|امتحان|میان.?ترم|exam|midterm/i.test(String(item?.name ?? ''));
+}
 export function itemReceipt(courseId, item) { return `${courseId}:${item.id}`; }
 export function unseenItems(courseId, items, seen = {}) {
   return personalItems(items).filter(item => seen[itemReceipt(courseId, item)] !== signature(item));

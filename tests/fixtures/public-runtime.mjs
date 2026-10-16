@@ -73,6 +73,13 @@ const policy = modules.get(new URL('lib/student-policy.js', root).href).namespac
 const send = async text => handlePublic({ chat: { id: 123, type: 'private' }, from: { id: 123 }, text }, 'none');
 
 for (const command of ['/start', '/help', '/courses', '/assignment', '/assignments', '/exams']) assert.equal(await send(command), true);
+// A private /start offers the public student Mini App as a button (the cooperation
+// form stays behind /setup, so the button must point at the app root).
+await send('/start');
+const appButton = messages.at(-1).reply_markup?.inline_keyboard?.[0]?.[0];
+assert.ok(appButton?.web_app?.url, 'private /start offers a Mini App button');
+assert.match(appButton.web_app.url, /^https:\/\/app\d+\.tgcloud\.ai\/$/);
+assert.ok(!appButton.web_app.url.includes('/setup'));
 assert.ok(messages.some(m => m.text.includes('تکلیف')));
 assert.ok(messages.every(m => !m.text.includes('/approve') && !m.text.includes('/admin')));
 assert.equal(await handlePublic({ chat: { id: -10, type: 'group' }, from: { id: 123 }, text: '/courses' }, 'none'), true);

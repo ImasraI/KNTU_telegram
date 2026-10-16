@@ -1,5 +1,5 @@
 import { api } from 'sdk';
-import { OWNER_ID, MINI_APP_URL } from '../lib/config.js';
+import { OWNER_ID, SETUP_APP_URL } from '../lib/config.js';
 import { getSetting, putSetting } from '../lib/settings.js';
 import { roleOf, visibleAccounts, approveContributor, revokeContributor } from '../lib/accounts.js';
 import { canConnect } from '../lib/authorize.js';
@@ -48,7 +48,7 @@ export default async function (message) {
       if (!canConnect(role)) return;
       return await api.sendMessage({ chat_id: chat.id,
         text: 'فرم خصوصی همکاری: اتصال یا تازه‌سازی حساب دانشگاهی. قبل از ارائهٔ اعتبار اتصال /privacy را بخوانید. رمز عبور، کوکی یا توکن را در چت نفرستید.',
-        reply_markup: { inline_keyboard: [[{ text: 'باز کردن فرم خصوصی دانشگاه', web_app: { url: MINI_APP_URL } }]] } });
+        reply_markup: { inline_keyboard: [[{ text: 'باز کردن فرم خصوصی دانشگاه', web_app: { url: SETUP_APP_URL } }]] } });
     }
     if (command === '/accounts' && canConnect(role)) {
       const rows = await visibleAccounts(role, fromId);

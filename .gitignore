@@ -1,5 +1,6 @@
 .tgcloud/
 node_modules/
 .freebuff/
+dist/
 *.local.json
 .env*

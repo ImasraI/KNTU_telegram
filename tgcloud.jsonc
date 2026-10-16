@@ -1,8 +1,11 @@
 {
-  // To host a Mini App, uncomment and set "source" to its build output folder:
-  // "static": {
-  //   "source": "dist"
-  // },
   "$schema": "./node_modules/@tgcloud/cli/schema/tgcloud.json",
-  "static": { "source": "setup", "headers": [{ "path": "/*", "set": { "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" } }] }
+  // `dist/` is built by scripts/build-frontend.mjs (npm run build / npm run deploy):
+  // the public student Mini App is served from the host root and the protected
+  // cooperation form stays available at /setup/. Both are personal-data surfaces,
+  // so no response is cached and no referrer leaves the page.
+  "static": {
+    "source": "dist",
+    "headers": [{ "path": "/*", "set": { "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" } }]
+  }
 }

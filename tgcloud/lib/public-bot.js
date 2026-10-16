@@ -1,6 +1,7 @@
 import { api } from 'sdk';
-import { PUBLIC_HELP, PRIVACY, selectedIds, consented, validFullName, FULL_NAME_PROMPT, FULL_NAME_HINT } from './student-policy.js';
-import { subscriber, saveSubscriber, forgetSubscriber, confirmSubscription, findStudentCourses, savedItems, registerDetected, COURSE_SUPPORT } from './subscriptions.js';
+import { MINI_APP_URL } from './config.js';
+import { PUBLIC_HELP, PRIVACY, selectedIds, consented, validFullName, isExam, FULL_NAME_PROMPT, FULL_NAME_HINT } from './student-policy.js';
+import { subscriber, saveSubscriber, forgetSubscriber, confirmSubscription, savedItems, registerDetected, registerStudent, stopStudent, resumeStudent, COURSE_SUPPORT } from './subscriptions.js';
 import { directorySummary } from './monitor.js';
 import { notification } from './content.js';
 import { canConnect } from './authorize.js';
@@ -26,6 +27,11 @@ export async function handlePublic(message, role) {
   }
   if (command === '/start' || command === '/help') {
     await reply(PUBLIC_HELP, privateChat ? MENU : undefined);
+    // The Mini App is the same public data in a browsable form; a button here is
+    // how a student finds it, next to the bot's own menu button.
+    if (privateChat) await api.sendMessage({ chat_id: message.chat.id,
+      text: '📱 مینی‌اپ درس‌ها: دیدن درس‌ها، تکلیف‌ها، امتحان‌ها و فایل‌ها — و ثبت‌نام خودکار درس‌های خودتان.',
+      reply_markup: { inline_keyboard: [[{ text: 'باز کردن مینی‌اپ درس‌ها', web_app: { url: MINI_APP_URL } }]] } });
     return true;
   }
   if (command === '/privacy') { await reply(PRIVACY); return true; }
@@ -60,7 +66,7 @@ export async function handlePublic(message, role) {
     const blocks = [];
     for (const course of courses) {
       for (const item of await savedItems(course)) {
-        if (command === '/assignments' ? item.kind !== 'assign' : !(item.kind === 'quiz' || /آزمون|امتحان|میان.?ترم|exam|midterm/i.test(item.name))) continue;
+        if (command === '/assignments' ? item.kind !== 'assign' : !isExam(item)) continue;
         blocks.push(notification({ fullname: course.name }, { ...item, change: 'updated' }, { classLine: course.line }));
       }
     }
@@ -78,22 +84,17 @@ export async function handlePublic(message, role) {
     return true;
   }
   if (command === '/stop') {
-    await saveSubscriber(tgId, { active: false, profile: { ...user?.profile, paused: true, stage: null, pending: null } });
+    await stopStudent(tgId);
     await reply('اعلان خصوصی متوقف شد. برای شروع دوباره /resume را بزنید. دستورهای عمومی همچنان در دسترس‌اند.', MENU);
     return true;
   }
   if (command === '/resume') {
-    if (!consented(user?.profile) && !user?.profile?.registered) await reply('ابتدا با /register ثبت‌نام کنید.');
-    else if (!user.profile.courses?.length) {
-      await saveSubscriber(tgId, { active: true, profile: { ...user.profile, paused: false } });
-      await reply('اعلان شخصی فعال شد؛ پس از شناسایی درس‌های شما، تغییرات بعدی ارسال می‌شود.\n' + COURSE_SUPPORT, MENU);
-    }
-    else {
-      // Reconfirmation seeds current items, avoiding a flood of paused updates.
-      await saveSubscriber(tgId, { profile: { ...user.profile, pending: { courses: user.profile.courses, name: user.profile.name, at: Date.now() } } });
-      await confirmSubscription(tgId);
-      await reply('اعلان خصوصی برای تغییرات بعدی فعال شد.', MENU);
-    }
+    // Reconfirmation seeds current items, avoiding a flood of paused updates.
+    const resumed = await resumeStudent(tgId);
+    if (resumed.state === 'not-registered') await reply('ابتدا با /register ثبت‌نام کنید.');
+    else if (resumed.state === 'no-courses') await reply('اعلان شخصی فعال شد؛ پس از شناسایی درس‌های شما، تغییرات بعدی ارسال می‌شود.\n' + COURSE_SUPPORT, MENU);
+    else if (resumed.state === 'failed') await reply('فعال‌سازی انجام نشد؛ کمی بعد دوباره /resume را بزنید.');
+    else await reply('اعلان خصوصی برای تغییرات بعدی فعال شد.', MENU);
     return true;
   }
   if (command === '/cancel') {
@@ -132,16 +133,18 @@ export async function handlePublic(message, role) {
     const directory = await directorySummary();
     const ids = selectedIds(args, directory.courses);
     if (!ids.length) await reply('درسی با این شماره‌ها پیدا نشد.\n' + COURSE_SUPPORT);
-    else await propose(tgId, user, ids, user?.profile?.name, reply, false);
+    else {
+      await registerDetected(tgId, { courses: ids, name: user?.profile?.name, participantId: user?.profile?.participantId }, user?.profile?.name);
+      await showRegistered(reply, ids, false);
+    }
     return true;
   }
   return false;
 }
 
-// The whole registration step. The displayed VC full name is the only input: a
-// plausible name is matched exactly against Participants (never guessed — an
-// ambiguous match registers nothing) and every matched course is added
-// automatically, with no selection or confirmation screen.
+// The chat face of `registerStudent` (the Mini App uses the same service). The
+// displayed VC full name is the only input; here the caller's own progress and
+// outcome are phrased as chat replies.
 async function registerByFullName(tgId, name, reply) {
   const user = await subscriber(tgId);
   const clean = String(name ?? '').trim();
@@ -151,28 +154,28 @@ async function registerByFullName(tgId, name, reply) {
     return true;
   }
   if (Date.now() - (user?.profile?.lookupAt ?? 0) < 60000) { await reply('برای جست‌وجوی بعدی یک دقیقه صبر کنید.'); return true; }
-  await saveSubscriber(tgId, { profile: { ...user?.profile, stage: null, lookupAt: Date.now(), pending: null, username: null } });
   await reply('در حال جست‌وجوی نام شما در درس‌های تحت پوشش…');
-  let found;
-  try { found = await findStudentCourses(clean); }
-  catch {
+  const result = await registerStudent(tgId, clean);
+  if (result.state === 'busy') {
     await reply('جست‌وجو اکنون ممکن نیست یا جست‌وجوی دیگری در حال اجراست. یک دقیقه بعد دوباره نام کامل را بفرستید.\n' + COURSE_SUPPORT);
     return true;
   }
+  if (result.state === 'name-invalid') { await reply(FULL_NAME_PROMPT + '\n' + FULL_NAME_HINT); return true; }
+  if (result.state !== 'registered') return true; // `/forget` during the lookup owns the outcome.
+  const found = result.found;
   if (!found.courses.length) {
-    await registerDetected(tgId, found, clean);
     await reply((found.ambiguous ? 'چند نفر هم‌نام پیدا شدند و برای جلوگیری از اشتباه، درسی به حساب شما متصل نشد.'
       : 'ثبت‌نام شما انجام شد؛ فعلاً درسی با این نام پیدا نشد. درس‌های تازهٔ تحت پوشش هم خودکار بررسی می‌شوند.') + '\n' + COURSE_SUPPORT, MENU);
     return true;
   }
-  const live = await subscriber(tgId);
-  await propose(tgId, live, found.courses, found.name, reply, found.incomplete, found.participantId);
+  await showRegistered(reply, found.courses, found.incomplete);
   return true;
 }
 
-async function propose(tgId, user, ids, name, reply, incomplete, participantId = user?.profile?.participantId) {
+// Renders what was just registered. Saving is the caller's job (registerStudent or
+// registerDetected), which keeps one registration path for the chat and the app.
+async function showRegistered(reply, ids, incomplete) {
   const directory = await directorySummary();
-  await registerDetected(tgId, { courses: ids, name, participantId }, name);
   await sendBlocks(reply, directory.courses.filter(c => ids.includes(String(c.id))).map(c => `#${c.id} ${c.name}\n${c.line ?? ''}`),
     `✅ درس‌های شما خودکار ثبت شدند.${incomplete ? '\nبعضی فهرست‌ها قابل خواندن نبودند؛ ممکن است فهرست ناقص باشد.' : ''}`);
   await reply('اعلان تغییرات بعدی این درس‌ها به گفت‌وگوی خصوصی شما ارسال می‌شود. درس‌های تازهٔ تحت پوشش هم خودکار بررسی خواهند شد. /stop برای توقف\n' + COURSE_SUPPORT, MENU);

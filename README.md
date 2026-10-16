@@ -11,7 +11,11 @@ from @Arsam_alaei. See [the student experience](docs/student-experience.md) for
 registration, name matching limits, privacy, delivery behavior and deployment.
 
 - Telegram Serverless app: `app8298297292`
-- Setup Mini App: <https://app8298297292.tgcloud.ai/>
+- **Student Mini App** (public, everyone): <https://app8298297292.tgcloud.ai/> — browsing,
+  self-registration, my courses, assignments/exams/files, notification controls, deletion.
+  See [docs/student-app.md](docs/student-app.md).
+- **Cooperation Mini App** (approved contributors and the owner only):
+  <https://app8298297292.tgcloud.ai/setup/> — reached through `/setup`.
 - Bot owner (`OWNER_ID`): `747977517`, set in [`tgcloud/lib/config.js`](tgcloud/lib/config.js)
 
 ## Current state (verified 2026-10-15)
@@ -56,15 +60,15 @@ registration, name matching limits, privacy, delivery behavior and deployment.
 6. **A newly discovered course is recorded silently** and added to the pending-digest list.
    The owner can publish its current contents once with `/digest` (or `/digest <courseId>`).
 7. Per-account health, pending digests and the run summary are stored in `settings.status`
-   and shown by `/status` and the Mini App.
+   and shown by `/status` and the cooperation Mini App.
 
 ## Classes, professors and weekly times
 
 Display policy: course titles hide bracketed university codes, and class lines
 show only the two-digit section number. A configured time replaces that number.
 For example, `/class 3 time 9:00 - 10:30` displays `09:00 - 10:30`;
-`/class 3 time clear` restores the section number. The Mini App has the same time
-field. Professor names always come from the Participants **استاد** role; manual
+`/class 3 time clear` restores the section number. The cooperation Mini App has the same
+time field. Professor names always come from the Participants **استاد** role; manual
 professor editing and legacy code mappings are disabled.
 
 **What the site does and does not expose** (checked against the live site on 2026-10-15,
@@ -130,7 +134,7 @@ Owner-only, in the bot's private chat:
 
 Class times are all-or-nothing: a half-parsed schedule is rejected rather than stored, and
 Persian digits, `تا`/`-` ranges and Persian weekday spellings (with or without ZWNJ) are
-accepted. The Mini App has the same editor under **Classes & professors**, with a
+accepted. The cooperation Mini App has the same editor under **Classes & professors**, with a
 **بررسی سایت** button per course that shows exactly what the site returned.
 
 The same owner-only rules apply as for accounts: `/class`, `/classes` and `/prof` work only in
@@ -177,7 +181,7 @@ A contributor can only create/update **their own** connection; the owner manages
 4. **Renewal.** Same page: **Renew** on the account row, or `/setup` again. Session
    credentials expire; a `MoodleSession` value also cannot be obtained by logging in to the
    browser — it must be copied from the browser's cookies for `vc.kntu.ac.ir` while logged in.
-5. **Disable / delete.** The Mini App can disable, enable, rename or delete a connection.
+5. **Disable / delete.** The cooperation Mini App can disable, enable, rename or delete a connection.
    Deleting an account never deletes baselines, so re-adding it cannot re-announce the course.
 
 **Credentials are never accepted in a chat and never leave Telegram.** They are sent to the
@@ -297,14 +301,40 @@ cookies are deliberately **not** copied to GitHub: credentials stay in Telegram'
 - First scans of newly enrolled courses are silent by design — use `/digest` to announce them
   on purpose. No deadline-reminder service and no per-user completion tracking are implemented.
 
+## Student Mini App
+
+The public Mini App is the same course data as the chat, in a browsable Persian RTL page.
+It is served from the host root; `/setup/` is the separate, approval-gated cooperation
+form. `tgcloud.jsonc` publishes one folder (`dist/`), which `npm run build`
+([`scripts/build-frontend.mjs`](scripts/build-frontend.mjs)) assembles from `web/` and
+`setup/`. `push` never builds, so `npm run deploy` (build + push) is the default.
+
+- Front-end: [`web/index.html`](web/index.html), [`web/app.js`](web/app.js),
+  [`web/app.css`](web/app.css) — no npm packages, no bundler, no secret in the browser.
+- Server side: one endpoint, [`tgcloud/endpoints/student.js`](tgcloud/endpoints/student.js)
+  (`actions: home, courses, course, feed, register, stop, resume, forget, help`).
+- Personal actions are scoped to `ctx.initData.user.id` (verified by the platform); the
+  request body cannot name another user. Public actions work for everyone and create no row.
+- Nowhere in a response: credentials, account ids, participant rosters or the long
+  university code. A class is identified by its class number or its weekly time.
+- Registration and the notification controls are the **same services** the chat uses
+  (`lib/subscriptions.js`, `lib/student-view.js`), so both surfaces agree by construction.
+- Reviewed outside Telegram with a mocked client in `.freebuff/ui-preview/`
+  (`node .freebuff/ui-preview/server.mjs`, then open the harness with
+  `?state=registered|unregistered|stale|error|empty`).
+
 ## Development
 
 ```
-npm test                     # 37 unit tests: parsing, change detection, accounts, routing
+npm test                     # 79 tests: parsing, change detection, routing, account
+                             # isolation, the student endpoint and the front-end build
+npm run build                # assemble dist/ (student app + cooperation form)
+npm run deploy               # build, then push modules + the static site
 npx.cmd tgcloud status       # what differs locally vs the cloud
-npx.cmd tgcloud push         # deploy modules + the setup/ static site
+npx.cmd tgcloud push         # deploy modules + dist/ (does not build it)
 npx.cmd tgcloud migrate --safe   # apply additive schema changes (separate from push)
 npx.cmd tgcloud webhook      # confirm the webhook matches handlers/
+node scripts/configure-bot.mjs   # install public menus, description and the app button
 ```
 
 Windows note: the `tgcloud` `.cmd` shim mangles quoted JSON arguments, so run a module with

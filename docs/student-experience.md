@@ -1,6 +1,10 @@
 # Public student experience
 
-All student-facing responses and the cooperation Mini App are Persian.
+All student-facing responses are Persian. The public **student Mini App**
+(<https://app8298297292.tgcloud.ai/>, see [docs/student-app.md](student-app.md)) shows the
+same course data in a browsable RTL page and performs the same registration and
+notification controls through shared services, so chat and app agree by construction. The
+cooperation form keeps its own protected path at `/setup/`.
 Public `/start`, `/help`, `/courses`, `/assignments` (alias `/assignment`) and
 `/exams` do not require contributor approval. They show only shared course
 material, not credentials or participant rosters. Private activity lists use a
@@ -27,6 +31,10 @@ No selection or confirmation step is shown. Ambiguous matches are rejected;
 unavailable lists are reported as incomplete, with a note to contact @Arsam_alaei.
 Only covered courses can be found. A name match is not identity verification.
 The lookup reads rosters transiently and retains no complete roster.
+
+The same registration runs in the Mini App's **من** tab: one field for the displayed VC
+name, no selection screen, and the same cooldown, ambiguity and incomplete-coverage
+reporting.
 
 Legacy `/select` applies covered courses immediately; `/confirm` remains only
 for compatibility with old pending registrations. Neither is requested in the
