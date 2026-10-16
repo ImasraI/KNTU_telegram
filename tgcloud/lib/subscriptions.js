@@ -9,7 +9,7 @@ import { courseTitle } from './classes.js';
 import { signature, notification } from './content.js';
 import { personalItems, itemReceipt, unseenItems, consented, identityText, validFullName } from './student-policy.js';
 
-export const COURSE_SUPPORT = 'اگر فهرست درس‌ها ناقص یا نادرست است، به @Arsam_alaei پیام بدهید.';
+export const COURSE_SUPPORT = 'اگر فهرست درس‌ها ناقص یا نادرست است، از بخش پشتیبانی مینی‌اپ به مدیر پیام بدهید.';
 
 export async function registerDetected(tgId, found, requestedName) {
   const row = await subscriber(tgId);
@@ -240,7 +240,7 @@ export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(
     const names = found.map(entry => '• ' + courseTitle(entry.course.fullname));
     try {
       await api.sendMessage({ chat_id: live.tgId, text: [
-        live.profile.ambiguous ? 'چند نفر با نام شما پیدا شدند؛ برای بررسی به @Arsam_alaei پیام بدهید.' : found.length ? `✅ ${found.length} درس برای شما شناسایی شد؛ اعلان شخصی فعال است.` : 'بررسی ثبت‌نام انجام شد؛ فعلاً درسی برای شما شناسایی نشد.',
+        live.profile.ambiguous ? 'چند نفر با نام شما پیدا شدند؛ برای بررسی از بخش پشتیبانی مینی‌اپ به مدیر پیام بدهید.' : found.length ? `✅ ${found.length} درس برای شما شناسایی شد؛ اعلان شخصی فعال است.` : 'بررسی ثبت‌نام انجام شد؛ فعلاً درسی برای شما شناسایی نشد.',
         ...names.slice(0, 30), failed || incomplete || !plan.length ? 'بعضی فهرست‌های دانشگاه قابل خواندن نبودند؛ ممکن است نتیجه ناقص باشد.' : '',
         '/mycourses برای دیدن درس‌ها؛ /stop برای توقف اعلان‌ها', COURSE_SUPPORT,
       ].filter(Boolean).join('\n').slice(0, 3900) });

@@ -11,7 +11,7 @@ export default async function (input, ctx) {
   const callerId = ctx?.initData?.user?.id;
   const role = await roleOf(callerId);
   if (!canConnect(role)) {
-    throw new EndpointError('برای همکاری در اتصال حساب، ابتدا از @Arsam_alaei تأیید بگیرید. استفادهٔ عمومی ربات نیازی به تأیید ندارد.', { code: 'NOT_APPROVED' });
+    throw new EndpointError('برای همکاری در اتصال حساب، ابتدا از مدیر تأیید بگیرید. استفادهٔ عمومی ربات نیازی به تأیید ندارد.', { code: 'NOT_APPROVED' });
   }
   if (!validCredential(input?.mode, input?.secret)) {
     throw new EndpointError('مقدار اتصال معتبر نیست. فقط مقدار MoodleSession یا توکن دانشگاه را وارد کنید؛ رمز عبور لازم نیست.', { code: 'INVALID_CREDENTIAL' });

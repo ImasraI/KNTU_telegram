@@ -5,11 +5,11 @@ export function identityText(value) {
   return normalizeSpaces(toAsciiDigits(value)).toLowerCase();
 }
 // Registration asks for one thing only: the name the university displays in VC
-// Participants (for example "Arsam Alaei"). No login username, student number,
+// Participants (the displayed full name). No login username, student number,
 // password, cookie or token is requested, validated or stored. The displayed full
 // name is what the Participants page exposes, so it is what can be matched.
 export const FULL_NAME_LABEL = 'نام کامل در VC';
-export const FULL_NAME_PROMPT = 'نام و نام خانوادگی خود را دقیقاً همان‌طور که در بخش شرکت‌کنندگان VC نمایش داده می‌شود بفرستید؛ مثلاً Arsam Alaei.';
+export const FULL_NAME_PROMPT = 'نام و نام خانوادگی خود را دقیقاً همان‌طور که در بخش شرکت‌کنندگان VC نمایش داده می‌شود بفرستید؛ بدون نیاز به نام کاربری ورود.';
 export const FULL_NAME_HINT = `فقط «${FULL_NAME_LABEL}» لازم است؛ رمز عبور، نام کاربری ورود یا توکن را نفرستید. /privacy برای جزئیات؛ /cancel برای لغو.`;
 // A displayed full name is at least two words and a plausible length. This is not
 // identity verification; it only rejects obvious non-names before a lookup runs.
@@ -25,8 +25,7 @@ export function selectedIds(values, covered) {
 export function personalItems(items) {
   return items.filter(item => ['assign', 'quiz', 'resource', 'folder', 'forum', 'page', 'book'].includes(item.kind));
 }
-// The public contact for an incomplete or wrong course list, shared by the chat
-// replies and the Mini App so both point at the same person.
+// Contact tag shown by the Mini App contact buttons.
 export const CONTACT = '@Arsam_alaei';
 // Moodle files an exam as a quiz module, but KNTU also announces exam dates in a
 // forum post, so the name is what decides. Shared by the chat listing and the app.
@@ -56,14 +55,14 @@ export const PUBLIC_HELP = ['🎓 به ربات اطلاع‌رسانی درس�
   'دیدن درس‌ها و اطلاعیه‌ها برای همه آزاد است و نیازی به تأیید یا ارائهٔ توکن ندارد.',
   ...PUBLIC_COMMANDS.map(c => `/${c.command} — ${c.description}`),
   '', 'پس از /register فقط «نام کامل در VC» را بفرستید؛ درس‌ها خودکار شناسایی و اعلان شخصی فعال می‌شود.',
-  'اگر فهرست درس‌ها ناقص یا نادرست است، به @Arsam_alaei پیام بدهید. درس‌های تازهٔ تحت پوشش هم خودکار برای شما بررسی می‌شوند.',
+  'اگر فهرست درس‌ها ناقص یا نادرست است، از بخش پشتیبانی مینی‌اپ به مدیر پیام بدهید. درس‌های تازهٔ تحت پوشش هم خودکار برای شما بررسی می‌شوند.',
   '/cancel — لغو ثبت؛ /forget — حذف اطلاعات اشتراک شخصی',
   'اطلاعات مربوط به آخرین بررسی است؛ بررسی خودکار هر ۳۰ دقیقه انجام می‌شود.',
 ].join('\n');
 export const PRIVACY = ['🔐 حریم خصوصی',
   'برای مشاهدهٔ عمومی یا دریافت اعلان شخصی، رمز عبور یا توکن دانشگاه لازم نیست.',
   'در اشتراک شخصی، شناسهٔ تلگرام، «نام کامل در VC» اعلام‌شده، شناسهٔ شرکت‌کننده، درس‌های شناسایی‌شده و سابقهٔ ارسال نگهداری می‌شود. رمز عبور یا نام کاربری ورود ذخیره نمی‌شود و نام دانشجویان دیگر منتشر نمی‌شود.',
-  'توکن یا کوکی فقط برای همکاری داوطلبانه و پس از تأیید @Arsam_alaei دریافت می‌شود؛ فقط در فرم خصوصی مینی‌اپ وارد کنید، نه در چت.',
+  'توکن یا کوکی فقط برای همکاری داوطلبانه و پس از تأیید مدیر دریافت می‌شود؛ فقط در فرم خصوصی مینی‌اپ وارد کنید، نه در چت.',
   'اعتبار اتصال در پایگاه دادهٔ خصوصی ربات روی تلگرام ذخیره می‌شود و هنگام خواندن سامانه برای vc.kntu.ac.ir ارسال می‌شود. مقدار آن در گروه، پاسخ ربات یا مخزن گیت‌هاب منتشر نمی‌شود.',
   'رمز عبور لازم نیست. ربات نمره‌ها، پاسخ تکالیف یا پیام‌های خصوصی شما را جمع‌آوری یا منتشر نمی‌کند.',
   'با /stop اعلان‌ها را متوقف و با /forget اطلاعات اشتراک شخصی را حذف کنید. اتصال همکاری را جداگانه از /setup حذف و برای لغو اعتبار توکن از تنظیمات دانشگاه اقدام کنید.',

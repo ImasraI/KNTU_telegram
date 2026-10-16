@@ -207,7 +207,7 @@ function registerForm(data, compact = false) {
     <form data-form="register" style="margin-top:12px">
       <label class="field"><span>${escapeHtml(policy.fullNameLabel)}</span>
         <input class="input" id="fullname" name="name" type="text" required minlength="3" maxlength="100"
-          autocomplete="off" placeholder="Arsam Alaei" value="${escapeHtml(data.me.name ?? '')}">
+          autocomplete="off" placeholder="نام و نام خانوادگی در VC" value="${escapeHtml(data.me.name ?? '')}">
         <small>${escapeHtml(policy.fullNameHint)}</small>
       </label>
       <button class="btn" type="submit" ${state.busy ? 'disabled' : ''}>ثبت‌نام و شناسایی خودکار درس‌ها</button>

@@ -36,7 +36,7 @@ test('registration asks only for the displayed full name; the login-username sta
   assert.equal(FULL_NAME_LABEL, 'نام کامل در VC');
   // Compared without the invisible ZWNJ so the wording, not an invisible char, is asserted.
   assert.equal(FULL_NAME_PROMPT.replace(/\u200c/g, ''),
-    'نام و نام خانوادگی خود را دقیقاً همانطور که در بخش شرکتکنندگان VC نمایش داده میشود بفرستید؛ مثلاً Arsam Alaei.');
+    'نام و نام خانوادگی خود را دقیقاً همانطور که در بخش شرکتکنندگان VC نمایش داده میشود بفرستید؛ بدون نیاز به نام کاربری ورود.');
   assert.ok(policy.FULL_NAME_HINT.includes(FULL_NAME_LABEL));
   // The help text names the field «نام کامل در VC» and never «نام کاربری».
   assert.match(PUBLIC_HELP, /نام کامل در VC/);
