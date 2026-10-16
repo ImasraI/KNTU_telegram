@@ -16,8 +16,8 @@ import { roleOf, visibleAccounts, approveContributor, revokeContributor, healthS
 import { notifyOnce } from '../lib/notify.js';
 import { noticeKey } from '../lib/notice-policy.js';
 import { scan, publishDigests, resolveDestination, directorySummary, detectClassInfo } from '../lib/monitor.js';
-import { parseClassCommand, parseProfCommand, describeBinding, parseCourseCode } from '../lib/classes.js';
-import { setBinding, deleteBinding, setProfessor, deleteProfessor, getBinding, professorMap } from '../lib/directory.js';
+import { parseClassCommand, parseProfCommand, describeBinding, parseCourseCode, courseTitle, deriveLabel } from '../lib/classes.js';
+import { setBinding, deleteBinding, setProfessor, deleteProfessor, getBinding, professorMap, detectedBinding } from '../lib/directory.js';
 
 const COMMANDS = new Set(['/start', '/help', '/setup', '/check', '/status', '/courses',
   '/assignments', '/exams', '/accounts', '/approve', '/revoke', '/bind', '/unbind',
@@ -26,14 +26,12 @@ const COMMANDS = new Set(['/start', '/help', '/setup', '/check', '/status', '/co
 const CLASS_HELP = ['تنظیم کلاس و استاد برای هر درس (فقط مالک ربات، در چت خصوصی):',
   '/classes — فهرست درس‌ها با کلاس، استاد و ساعت کلاس',
   '/class <شماره درس> — نمایش تنظیم فعلی و اطلاعات سایت',
-  '/class <شماره درس> code 4051-1111166-17 — ثبت کد درس',
   '/class <شماره درس> label 17 — تعیین نام کلاس',
-  '/class <شماره درس> prof استاد طباطبایی — ثبت نام استاد',
-  '/class <شماره درس> prof 4051 — ثبت کد استاد (نگاشت با /prof)',
+  '/class <شماره درس> time 9:00 - 10:30 — نمایش ساعت به جای شماره کلاس',
+  '/class <شماره درس> time clear — بازگشت به شماره کلاس',
   '/class <شماره درس> slots یک‌شنبه 10:00-11:30، سه‌شنبه 8:00-9:30 — ساعت کلاس‌ها',
   '/class <شماره درس> clear — حذف تنظیم',
-  '/prof 4051 استاد طباطبایی — نگاشت کد استاد به نام',
-  '/prof del 4051 — حذف نگاشت'].join('\n');
+  'نام استاد از شرکت‌کنندگان دریافت می‌شود.'].join('\n');
 
 const HELP = ['KNTU course monitor',
   '/courses — courses covered right now',
@@ -67,6 +65,7 @@ export default async function (message, ctx) {
   const role = await roleOf(fromId);
   const owner = role === 'owner';
   const reply = async (text, extra = {}) => {
+    text = courseTitle(text).replace(/\b\d{1,4}-\d{7}-\d{1,4}\b/g, value => deriveLabel(value) ?? '');
     try { return await api.sendMessage({ chat_id: chat.id, text, link_preview_options: { is_disabled: true }, ...extra }); }
     catch { return null; } // e.g. no send rights in the group; never fatal
   };
@@ -166,8 +165,7 @@ export default async function (message, ctx) {
       const summary = await directorySummary();
       if (!summary.courses.length) return await reply('هنوز درسی ثبت نشده است. ابتدا /check را اجرا کنید.');
       const lines = summary.courses.map(course => {
-        const code = course.binding?.code ?? course.siteCode ?? course.codeFromName;
-        return [`#${course.id} ${course.name}`, code ? `   کد ${code}` : '   کد نامشخص (با /class ' + course.id + ' detect بررسی کنید)',
+        return [`#${course.id} ${course.name}`,
           `   ${course.text}`, ''].join('\n');
       });
       const chunks = [];
@@ -184,27 +182,14 @@ export default async function (message, ctx) {
     }
 
     if (command === '/prof') {
-      const parsed = parseProfCommand(args);
-      if (parsed.action === 'list' || parsed.error) {
-        const summary = await directorySummary();
-        if (parsed.action === 'list' && !summary.professors.length) return await reply('نگاشت استادی ثبت نشده است.\n' + CLASS_HELP);
-        if (parsed.action === 'list') {
-          return await reply(['نگاشت کد استاد به نام:',
-            ...summary.professors.slice(0, 100).map(p => `${p.code} — ${p.name}`)].join('\n'));
-        }
-        return await reply(`ورودی نامعتبر است.\n\n${CLASS_HELP}`);
-      }
-      if (parsed.action === 'delete') {
-        const removed = await deleteProfessor(parsed.code);
-        return await reply(`نگاشت کد ${removed.code} حذف شد.`);
-      }
-      const saved = await setProfessor(parsed.code, parsed.name, fromId);
-      return await reply(`ثبت شد: ${saved.code} — ${saved.name}`);
+      const summary = await directorySummary();
+      return await reply(summary.courses.map(c => `#${c.id} ${c.name}\n${c.line ?? ''}`).join('\n\n'));
     }
 
     // /class
     if (!args.length) return await reply(CLASS_HELP);
     const parsed = parseClassCommand(args);
+    if (parsed.action === 'professor') return await reply('نام استاد از نقش استاد در شرکت‌کنندگان دریافت می‌شود. برای تازه‌سازی /class ' + parsed.courseId + ' detect');
     const errors = { COURSE_ID: 'شماره درس را بنویسید: /class 1413', CODE: 'کد درس باید ۱۳ رقمی مثل 4051-1111166-17 باشد.',
       LABEL: 'نام کلاس را بنویسید.', PROFESSOR: 'نام یا کد استاد را بنویسید.',
       SLOTS: 'ساعت کلاس را مثل «یک‌شنبه 10:00-11:30» بنویسید.', SUBCOMMAND: 'زیرفرمان نامعتبر است.' };
@@ -221,26 +206,16 @@ export default async function (message, ctx) {
       return await reply(`تنظیم درس #${parsed.courseId} حذف شد.`);
     }
     if (parsed.action === 'show') {
-      const binding = await getBinding(key);
-      const detection = (await getSetting('courseDetection'));
-      const found = detection?.results?.find(r => Number(r.id) === Number(parsed.courseId));
-      const nameCode = parseCourseCode(course.fullname)?.code ?? null;
-      const siteCodes = ((await getSetting('siteCourseCodes'))?.codes) ?? {};
-      return await reply([`#${course.id} ${course.fullname}`,
-        `کد از نام درس: ${nameCode ?? 'نامشخص'}`,
-        `کد از سایت: ${siteCodes[String(course.id)] ?? 'نامشخص'}`,
-        `تنظیم فعلی: ${describeBinding(binding, professors)}`,
-        found ? `بررسی صفحه: کد ${found.detected?.codes?.join('، ') || 'نامشخص'} · استاد ${found.detected?.teachers?.join('، ') || 'نامشخص'}` : '',
-        `بررسی صفحه درس: /class ${course.id} detect`].filter(Boolean).join('\n'));
+      const summary = await directorySummary();
+      const current = summary.courses.find(c => String(c.id) === String(course.id));
+      return await reply(`#${course.id} ${course.fullname}\n${current?.line ?? 'بدون تنظیم'}\n/class ${course.id} time 9:00 - 10:30`);
     }
     if (parsed.action === 'detect') {
       const record = await detectClassInfo([parsed.courseId], 1);
       const entry = record.results[0];
       return await reply([`#${entry.id} ${entry.name}`,
-        `کد کامل از فهرست دروس سایت: ${entry.siteCode ?? 'نامشخص'}`,
-        `کد در نام خود درس: ${entry.codeFromName ?? 'نامشخص'}`,
         entry.detected?.available
-          ? `کدهای صفحه: ${entry.detected.codes?.join('، ') || 'نامشخص'} · استاد: ${entry.detected.teachers?.join('، ') || 'نامشخص'}`
+          ? `استاد: ${entry.detected.teachers?.join('، ') || 'نامشخص'}`
           : (entry.siteCode ? '' : `صفحه درس خوانده نشد (${entry.detected?.reason ?? entry.error ?? 'نامشخص'})`)].filter(Boolean).join('\n'));
     }
 
@@ -249,7 +224,7 @@ export default async function (message, ctx) {
       : parsed.action === 'professor' ? (parsed.professorCode ? { professorCode: parsed.professorCode } : { professorName: parsed.professorName })
       : { slots: parsed.slots };
     await setBinding(key, patch, fromId);
-    const saved = await getBinding(key);
+    const saved = await detectedBinding(key, await getBinding(key));
     return await reply(`#${course.id} ${course.fullname}\n${describeBinding(saved, professors)}`);
   }
 
@@ -287,7 +262,8 @@ export default async function (message, ctx) {
 
   const courses = (await getSetting('courses')) ?? [];
   if (command === '/courses') {
-    return await reply(courses.map(c => c.fullname).join('\n') || 'Run the first check after setup.');
+    const summary = await directorySummary();
+    return await reply(summary.courses.map(c => `${c.name}\n${c.line ?? ''}`).join('\n\n') || 'Run the first check after setup.');
   }
 
   const rows = await db.select().from(snapshots).all();

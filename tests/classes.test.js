@@ -44,19 +44,19 @@ test('class times are parsed all-or-nothing, never half-saved', () => {
     { weekday: 3, from: '08:00', to: '09:30' },
   ]);
   assert.equal(parseSlots('یکشنبه'), null);           // no time
-  assert.equal(parseSlots('10:00-11:30'), null);      // no weekday
+  assert.deepEqual(parseSlots('10:00-11:30'), [{ weekday: null, from: '10:00', to: '11:30' }]);
   assert.equal(parseSlots('یکشنبه 25:00-26:00'), null);
   assert.equal(parseSlots('یکشنبه 10:00-11:30، حالا'), null); // one bad part rejects all
   assert.equal(parseSlots(''), null);
-  assert.equal(formatSlots([{ weekday: 1, from: '10:00', to: '11:30' }]), 'یکشنبه 10:00-11:30');
-  assert.equal(formatSlots([{ weekday: 1, from: '10:00', to: '11:30' }, { weekday: 3, from: '08:00', to: '09:30' }]), 'یکشنبه 10:00-11:30، سه‌شنبه 08:00-09:30');
+  assert.equal(formatSlots([{ weekday: 1, from: '10:00', to: '11:30' }]), 'یکشنبه 10:00 - 11:30');
+  assert.equal(formatSlots([{ weekday: 1, from: '10:00', to: '11:30' }, { weekday: 3, from: '08:00', to: '09:30' }]), 'یکشنبه 10:00 - 11:30، سه‌شنبه 08:00 - 09:30');
 });
 
 test('a class line names the class, the professor and the weekly time', () => {
   const professors = new Map([['4051', 'استاد طباطبایی']]);
   assert.equal(classLine(null, professors), null);
   assert.equal(classLine({ code: '4051-1111166-17', label: '17', professorCode: '4051', slots: [{ weekday: 1, from: '10:00', to: '11:30' }] }, professors),
-    '🏫 کلاس 17 — کد 4051-1111166-17 — استاد طباطبایی — یکشنبه 10:00-11:30');
+    '🏫 یکشنبه 10:00 - 11:30 — استاد طباطبایی');
   // An unmapped professor code is not invented.
   assert.equal(classLine({ label: '13', professorCode: '9999' }, professors), '🏫 کلاس 13');
   assert.equal(classLine({ label: '13', professorName: 'استاد رضایی' }, professors), '🏫 کلاس 13 — استاد رضایی');
@@ -73,7 +73,7 @@ test('a class line names the class, the professor and the weekly time', () => {
 test('an unbound class is described as unbound rather than guessed', () => {
   assert.equal(describeBinding(null, new Map()), 'بدون تنظیم');
   assert.equal(describeBinding({ label: '17', professorCode: '4051' }, new Map([['4051', 'استاد طباطبایی']])), 'کلاس 17 — استاد طباطبایی');
-  assert.match(describeBinding({ label: '17', professorCode: '4051' }, new Map()), /نام ثبت نشده/);
+  assert.equal(describeBinding({ label: '17', professorCode: '4051' }, new Map()), 'کلاس 17');
 });
 
 test('owner commands are parsed into explicit intent', () => {
@@ -138,11 +138,29 @@ test('every enrolled course code is read from the "My courses" block, not the co
 
 test('an unbound class still names itself once the site code is known', () => {
   const line = classLine(null, new Map(), '4051-1110274-23');
-  assert.equal(line, '🏫 کلاس 23 — کد 4051-1110274-23');
+  assert.equal(line, '🏫 کلاس 23');
   assert.equal(classLine(null, new Map(), null), null);
   // A manual binding wins over the detected code, but both identify the class.
   assert.equal(classLine({ code: '4051-1110274-22', professorName: 'طباطبایی' }, new Map(), '4051-1110274-23'),
-    '🏫 کلاس 22 — کد 4051-1110274-22 — استاد طباطبایی');
+    '🏫 کلاس 22 — استاد طباطبایی');
+});
+
+test('time replaces the class number and course titles hide group and full codes', () => {
+  const parsed = parseClassCommand(['3', 'time', '9:00 - 10:30']);
+  assert.equal(parsed.action, 'slots');
+  assert.deepEqual(parsed.slots, [{ weekday: null, from: '09:00', to: '10:30' }]);
+  const line = classLine({ code: '4051-1110001-11', slots: parsed.slots, professorName: 'Professor' }, new Map());
+  assert.equal(line, '🏫 09:00 - 10:30 — استاد Professor');
+  const item = { kind: 'assign', name: 'HW', files: [] };
+  for (const title of ['Math [4051]', 'Math [4051-1110001-11]', 'Math [۴۰۵۱]']) {
+    const text = notification({ fullname: title }, item, { classLine: line });
+    assert.ok(text.includes('Math'));
+    assert.doesNotMatch(text, /4051|1110001|۴۰۵۱|\[/);
+    assert.doesNotMatch(digest({ fullname: title }, [item]), /4051|1110001|۴۰۵۱|\[/);
+  }
+  assert.deepEqual(parseClassCommand(['3', 'time', 'clear']).slots, []);
+  assert.equal(parseSlots('10:30 - 9:00'), null);
+  assert.equal(parseSlots('9:00 - 10:30 trailing junk'), null);
 });
 
 test('the professor command keeps "del" in front, whichever way it is written', () => {

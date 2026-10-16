@@ -3,7 +3,7 @@ import { roleOf } from '../lib/accounts.js';
 import { canConnect } from '../lib/authorize.js';
 import { courseKey, courseIdFromKey } from '../lib/plan.js';
 import { parseCourseCode, deriveLabel, parseSlots, normalizeSpaces } from '../lib/classes.js';
-import { setBinding, deleteBinding, setProfessor, deleteProfessor, getBinding, professorMap } from '../lib/directory.js';
+import { setBinding, deleteBinding, setProfessor, deleteProfessor, getBinding, professorMap, bindingMap, detectedBinding } from '../lib/directory.js';
 import { getSetting } from '../lib/settings.js';
 import { detectClassInfo, directorySummary } from '../lib/monitor.js';
 
@@ -36,18 +36,19 @@ export default async function (input, ctx) {
 
   requireOwner(role);
 
+  if (action === 'resetProfessors') {
+    const bindings = await bindingMap();
+    for (const [key] of bindings) await setBinding(key, { professorName: null, professorCode: null, source: 'participants' }, callerId);
+    return { reset: bindings.size };
+  }
+
   if (action === 'detect') {
     const courseId = input?.courseId ? [await resolveCourseId(input)] : null;
     return await detectClassInfo(courseId, Number(input?.limit) > 0 ? Number(input.limit) : 10);
   }
 
   if (action === 'professor') {
-    const code = normalizeSpaces(input?.code).slice(0, 20);
-    if (!code) throw new EndpointError('A professor code is required.', { code: 'PROFESSOR_CODE_REQUIRED' });
-    if (input?.name === null || input?.name === '' || input?.delete) return await deleteProfessor(code);
-    const name = normalizeSpaces(input?.name).slice(0, 60);
-    if (!name) throw new EndpointError('A professor name is required.', { code: 'PROFESSOR_NAME_REQUIRED' });
-    return await setProfessor(code, name, callerId);
+    throw new EndpointError('Professor names are read from Participants.', { code: 'PARTICIPANTS_SOURCE' });
   }
 
   const courseId = await resolveCourseId(input);
@@ -69,16 +70,14 @@ export default async function (input, ctx) {
       patch.label = input.label !== undefined ? String(input.label).slice(0, 20) : deriveLabel(parsed);
     }
     if (input.label !== undefined) patch.label = normalizeSpaces(input.label).slice(0, 20) || null;
-    if (input.professorCode !== undefined) patch.professorCode = normalizeSpaces(input.professorCode).slice(0, 20) || null;
-    if (input.professorName !== undefined) patch.professorName = normalizeSpaces(input.professorName).slice(0, 60) || null;
     if (input.slots !== undefined) {
-      const slots = typeof input.slots === 'string' ? parseSlots(input.slots) : input.slots;
+      const slots = input.slots === '' ? [] : typeof input.slots === 'string' ? parseSlots(input.slots) : input.slots;
       if (slots === null) throw new EndpointError('Could not read those class times. Use e.g. «یکشنبه 10:00-11:30، سه‌شنبه 8:00-9:30».', { code: 'SLOTS' });
       patch.slots = Array.isArray(slots) ? slots.slice(0, 10) : [];
     }
     await setBinding(key, patch, callerId);
     const professors = await professorMap();
-    const saved = await getBinding(key);
+    const saved = await detectedBinding(key, await getBinding(key));
     return { saved: { ...saved, professor: saved?.professorName ?? (professors.get(String(saved?.professorCode)) ?? null) } };
   }
   throw new EndpointError('Unknown action.', { code: 'BAD_ACTION' });

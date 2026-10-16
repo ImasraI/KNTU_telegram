@@ -5,9 +5,8 @@ import { normalizeSpaces } from './classes.js';
 import { getSetting, putSetting } from './settings.js';
 
 export async function detectedBinding(key, binding = null) {
-  if (binding?.professorName || binding?.professorCode) return binding;
   const found = await getSetting('participantProfessor:' + key);
-  return found?.name ? { ...binding, key, professorName: found.name, source: binding?.source ?? 'participants' } : binding;
+  return { ...binding, key, professorName: found?.name ?? null, professorCode: null, source: 'participants' };
 }
 
 export async function refreshProfessor(key, moodle, force = false) {

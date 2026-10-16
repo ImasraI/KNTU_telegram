@@ -1,4 +1,5 @@
 import { DIGEST_MAX_ITEMS } from './config.js';
+import { courseTitle } from './classes.js';
 
 export function decode(s) {
   return String(s ?? '').replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (_, e) => {
@@ -82,7 +83,7 @@ export function notification(course, item, options = {}) {
     // Which class/professor/time this belongs to, so a student can tell whether the
     // activity is for their class. Kept near the top so truncation never hides it.
     options.classLine,
-    course.fullname, item.name, item.dates, item.description?.slice(0, 1600),
+    courseTitle(course.fullname), item.name, item.dates, item.description?.slice(0, 1600),
     item.files?.length ? 'پیوست‌ها: ' + item.files.map(f => f.name).join('، ').slice(0, 600) : '',
     item.url].filter(Boolean).join('\n').slice(0, 4000);
 }
@@ -91,7 +92,7 @@ export function notification(course, item, options = {}) {
 export function digest(course, items, maxItems = DIGEST_MAX_ITEMS, options = {}) {
   const list = (items ?? []).slice(0, maxItems);
   const total = items?.length ?? 0;
-  return [`📚 نمای اولیه — ${course.fullname}`,
+  return [`📚 نمای اولیه — ${courseTitle(course.fullname)}`,
     options.classLine,
     `${total} فعالیت پیش‌تر در این دوره ثبت شده است.`,
     ...list.map(x => `• ${kindLabel(x.kind)} ${x.name}${x.dates ? `\n${x.dates}` : ''}`),

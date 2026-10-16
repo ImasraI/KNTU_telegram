@@ -44,11 +44,10 @@ code{background:#f1f4f9;padding:1px 5px;border-radius:5px}
 
 <section id="classSection" hidden>
   <h2>Classes &amp; professors</h2>
-  <p class="muted">KNTU prints a 13-digit course code in the course name but never the professor, and one course name is taught by many professors in different sections. The class code below is read from the course name; bind the professor and the weekly class time here and every notice will name them.</p>
+  <p class="muted">نام استاد از شرکت‌کنندگان دریافت می‌شود. فقط شماره دو رقمی کلاس نمایش داده می‌شود؛ برای نمایش ساعت به جای آن، زمان کلاس را تنظیم کنید.</p>
   <div id="classList"></div>
-  <h3>Professor code → name</h3>
-  <div id="professors"></div>
-  <form id="profForm">
+  <div id="professors" hidden></div>
+  <form id="profForm" hidden>
     <div class="grid">
       <input id="profCode" placeholder="کد استاد (4051)" maxlength="20">
       <input id="profName" placeholder="نام استاد" maxlength="60">
@@ -87,7 +86,7 @@ function call(name, input) {
   });
 }
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const slotText = s => `${WEEKDAYS[s.weekday] ?? '?'} ${s.from}${s.to ? '-' + s.to : ''}`;
+const slotText = s => `${WEEKDAYS[s.weekday] ? WEEKDAYS[s.weekday] + ' ' : ''}${s.from}${s.to ? ' - ' + s.to : ''}`;
 
 function accountCard(a) {
   const health = a.health || {};
@@ -108,10 +107,10 @@ function classCard(c) {
   return `<div class="card" data-key="${escapeHtml(c.key)}" data-id="${c.id}">
     <b>#${c.id} ${escapeHtml(c.name)}</b>
     <span class="muted">${escapeHtml(c.text)}</span>
-    <span class="muted">کد سایت: ${escapeHtml(c.siteCode || '—')} · کد در نام درس: ${escapeHtml(c.codeFromName || '—')}</span>
     <input data-f="label" placeholder="نام کلاس (17)" value="${escapeHtml(b.label || '')}" maxlength="20">
-    <input data-f="professor" placeholder="استاد: نام یا کد" value="${escapeHtml(b.professor || b.professorName || b.professorCode || '')}" maxlength="60">
-    <input data-f="slots" placeholder="یکشنبه 10:00-11:30، سه‌شنبه 8:00-9:30" value="${escapeHtml(slots)}" maxlength="200">
+    <span>استاد: ${escapeHtml(b.professor || b.professorName || 'نامشخص')} (شرکت‌کنندگان)</span>
+    <label>زمان کلاس (جایگزین شماره کلاس؛ خالی = شماره کلاس)</label>
+    <input data-f="slots" placeholder="9:00 - 10:30" value="${escapeHtml(slots)}" maxlength="200">
     <div><button class="ghost" data-act="save">ذخیره</button>
     <button class="ghost" data-act="detect">بررسی سایت</button>
     <button class="ghost danger" data-act="clear">حذف</button></div>
@@ -201,16 +200,14 @@ $('classList').onclick = async e => {
       const found = await call('directory', { action: 'detect', courseId: id, limit: 1 });
       const entry = found.results?.[0];
       out.textContent = entry?.detected?.available
-        ? `سایت — کد: ${(entry.detected.codes || []).join('، ') || 'نامشخص'} · استاد: ${(entry.detected.teachers || []).join('، ') || 'نامشخص'}`
+        ? `استاد: ${(entry.detected.teachers || []).join('، ') || 'نامشخص'}`
         : `صفحه درس خوانده نشد (${entry?.detected?.reason || entry?.error || 'نامشخص'})`;
     } else if (b.dataset.act === 'clear') {
       if (!confirm('این تنظیم کلاس حذف شود؟')) return;
       const data = await call('directory', { action: 'clear', courseId: id });
       renderDirectory(data); say(`تنظیم درس #${id} حذف شد.`);
     } else {
-      const professor = value('professor');
       const input = { action: 'set', courseId: id, label: value('label'), slots: value('slots'), source: 'manual' };
-      if (/^\d{1,6}$/.test(professor)) input.professorCode = professor; else input.professorName = professor;
       await call('directory', input);
       const data = await call('directory', { action: 'list' });
       renderDirectory(data); say(`ذخیره شد — #${id}`);

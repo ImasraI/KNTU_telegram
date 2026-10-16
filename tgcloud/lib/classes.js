@@ -26,6 +26,10 @@ export function normalizeSpaces(text) {
     .replace(/[–—−]/g, '-').replace(/\s+/g, ' ').trim();
 }
 
+export function courseTitle(text) {
+  return String(text ?? '').replace(/\s*\[[\d\u06f0-\u06f9\u0660-\u0669\s-]+\]/g, '').trim();
+}
+
 // `[4051-1111166-17]`, `22-1110274-4051`, `۲۲-۱۱۱۰۲۷۴-۴۰۵۱` → canonical a-b-c.
 export function parseCourseCode(text) {
   const value = normalizeSpaces(toAsciiDigits(text));
@@ -74,12 +78,13 @@ export function parseSlots(text, max = 10) {
   for (const part of parts) {
     // Normalise digits first: JS `\d` only matches ASCII, and Moodle renders ۱۰:۰۰.
     const ascii = normalizeSpaces(toAsciiDigits(part));
-    const weekday = weekdayIndex(ascii.replace(/\s*\d.*$/, '').trim());
+    const dayText = ascii.replace(/\s*\d.*$/, '').trim();
+    const weekday = dayText ? weekdayIndex(dayText) : null;
     const times = ascii.match(/(\d{1,2}:\d{2})\s*(?:-|تا|to)\s*(\d{1,2}:\d{2})/);
-    if (weekday === null || !times) return null; // all-or-nothing: never store a half-parsed schedule
+    if ((dayText && weekday === null) || !times || times[0] !== ascii.slice(dayText.length).trim()) return null;
     const from = parseClock(times[1]);
     const to = parseClock(times[2]);
-    if (!from || !to) return null;               // 25:00 is a typo, not a class time
+    if (!from || !to || from >= to) return null;
     slots.push({ weekday, from, to });
     if (slots.length > max) return null;
   }
@@ -87,9 +92,9 @@ export function parseSlots(text, max = 10) {
 }
 
 export function formatSlot(slot) {
-  const day = WEEKDAYS[slot?.weekday] ?? '?';
+  const day = WEEKDAYS[slot?.weekday] ?? '';
   if (!slot?.from) return day;
-  return `${day} ${slot.from}${slot.to ? '-' + slot.to : ''}`;
+  return `${day ? day + ' ' : ''}${slot.from}${slot.to ? ' - ' + slot.to : ''}`;
 }
 
 export function formatSlots(slots, max = 4) {
@@ -124,12 +129,11 @@ export function classLine(binding, professors, siteCode = null) {
   const label = binding?.label ?? (code ? deriveLabel(code) : null);
   if (!binding && !code) return null;
   const parts = [];
-  if (label) parts.push(`کلاس ${label}`);
-  if (code && code !== label) parts.push(`کد ${code}`);
-  const professor = professorFor(binding, professors);
-  if (professor) parts.push(professorLabel(professor));
   const slots = formatSlots(binding?.slots);
   if (slots) parts.push(slots);
+  else if (label) parts.push(`کلاس ${label}`);
+  const professor = professorFor(binding, professors);
+  if (professor) parts.push(professorLabel(professor));
   return parts.length ? '🏫 ' + parts.join(' — ') : null;
 }
 
@@ -172,7 +176,7 @@ export function parseClassCommand(args) {
       ? { courseId: id, action: 'professor', professorCode: toAsciiDigits(clean) }
       : { courseId: id, action: 'professor', professorName: clean };
   }
-  if (['slots', 'slot', 'زمان', 'ساعت'].includes(key)) {
+  if (['time', 'slots', 'slot', 'زمان', 'ساعت'].includes(key)) {
     if (['clear', 'none', 'حذف'].includes(value.toLowerCase())) return { courseId: id, action: 'slots', slots: [] };
     const slots = parseSlots(value);
     return slots ? { courseId: id, action: 'slots', slots } : { error: 'SLOTS' };
@@ -185,10 +189,8 @@ export function describeBinding(binding, professors) {
   if (!binding) return 'بدون تنظیم';
   const professor = professorFor(binding, professors);
   return [
-    binding.label ? `کلاس ${binding.label}` : null,
-    binding.code ? `کد ${binding.code}` : null,
-    professor ? professorLabel(professor) : (binding.professorCode ? `کد استاد ${binding.professorCode} (نام ثبت نشده)` : null),
-    binding.slots?.length ? formatSlots(binding.slots, 6) : null,
+    binding.slots?.length ? formatSlots(binding.slots, 6) : (binding.label || deriveLabel(binding.code) ? `کلاس ${binding.label || deriveLabel(binding.code)}` : null),
+    professor ? professorLabel(professor) : null,
     binding.source ? `منبع: ${binding.source}` : null,
   ].filter(Boolean).join(' — ') || 'بدون تنظیم';
 }

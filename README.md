@@ -54,6 +54,13 @@ posts new/changed course activities into one chosen group/topic.
 
 ## Classes, professors and weekly times
 
+Display policy: course titles hide bracketed university codes, and class lines
+show only the two-digit section number. A configured time replaces that number.
+For example, `/class 3 time 9:00 - 10:30` displays `09:00 - 10:30`;
+`/class 3 time clear` restores the section number. The Mini App has the same time
+field. Professor names always come from the Participants **استاد** role; manual
+professor editing and legacy code mappings are disabled.
+
 **What the site does and does not expose** (checked against the live site on 2026-10-15,
 with the connected session, plus the public pages):
 
@@ -67,7 +74,8 @@ with the connected session, plus the public pages):
   in the row whose role is exactly **استاد**. Session connections now discover it
   automatically, including later pages, cache it for 24 hours, and include it in
   notifications and the class directory. `/class <id> detect` refreshes it immediately.
-  Manual professor names/codes take priority. Missing, inaccessible or ambiguous
+  Professor names always use Participants; legacy manual overrides are ignored.
+  Missing, inaccessible or ambiguous
   participant lists never block assignment checks. Only the professor name is stored;
   student records are discarded. API-token connections retain manual naming.
 - Codes are printed `<group>-<course>-<section>`, e.g. `4051-1110274-23`; a code read

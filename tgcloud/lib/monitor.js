@@ -9,7 +9,7 @@ import { syncCourses } from './sync.js';
 import { planCourses, courseKey, courseIdFromKey, courseList, coveredKeys, lostCoverage } from './plan.js';
 import { destinationFrom, sendTarget, describeDestination } from './destination.js';
 import { bindingMap, professorMap, professorRows, bindingView, detectedBinding, refreshProfessor } from './directory.js';
-import { classLine, describeBinding, parseCourseCode } from './classes.js';
+import { classLine, describeBinding, parseCourseCode, courseTitle, deriveLabel } from './classes.js';
 import { enabledAccounts, ensureMigrated, setHealth } from './accounts.js';
 import { notifyOnce } from './notify.js';
 import { noticeKey } from './notice-policy.js';
@@ -59,7 +59,7 @@ function sessionText(account) {
 function coverageText(lostKeys, knownCourses) {
   const names = lostKeys.map(key => {
     const course = knownCourses.find(c => courseKey(c) === key);
-    return '• ' + (course?.fullname ?? key);
+    return '• ' + courseTitle(course?.fullname ?? key);
   });
   return ['⚠️ پوشش دوره‌ها کاهش یافت: ' + lostKeys.length + ' دوره در این بررسی خوانده نشد.',
     ...names.slice(0, 15),
@@ -337,11 +337,11 @@ export async function directorySummary() {
       const binding = bindings.get(courseKey(course));
       const siteCode = siteCodes[String(course.id)] ?? null;
       return {
-        key: courseKey(course), id: course.id, name: course.fullname,
+        key: courseKey(course), id: course.id, name: courseTitle(course.fullname),
         codeFromName: parseCourseCode(course.fullname)?.code ?? null,
         siteCode,
         binding: bindingView(binding, map),
-        text: describeBinding(binding, map) ?? classLine(binding, map, siteCode),
+        text: classLine(binding, map, siteCode) ?? 'بدون تنظیم',
         line: classLine(binding, map, siteCode),
       };
     }),
