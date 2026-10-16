@@ -10,18 +10,22 @@ export async function courseRoster(course, { force = false, readers, load } = {}
   const key = 'participantRoster:' + courseKey(course);
   const cached = await getSetting(key);
   if (!force && cached?.version === 1 && Array.isArray(cached.people)) return cached.people;
-  let people;
+  let people, professorName;
   if (load) people = await load(course);
   else {
     const accounts = (await enabledAccounts()).filter(a => a.mode === 'session' && (!readers?.length || readers.includes(a.id)));
     for (const account of accounts) {
-      try { people = await connector(fetch, account).participants(course); break; }
+      try {
+        const directory = await connector(fetch, account).participantDirectory(course);
+        people = directory.people; professorName = directory.professorName; break;
+      }
       catch { /* keep a previous complete cache intact and try another reader */ }
     }
   }
   if (!Array.isArray(people)) throw new Error('PARTICIPANT_ROSTER_UNAVAILABLE');
   const clean = [...new Map(people.filter(p => p.id && p.name).map(p => [String(p.id), {id: String(p.id), name: String(p.name).slice(0,100)}])).values()];
   await putSetting(key, { version: 1, fetchedAt: Date.now(), people: clean });
+  if (professorName !== undefined) await putSetting('participantProfessor:' + courseKey(course), {name:professorName, at:Date.now()});
   return clean;
 }
 

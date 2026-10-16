@@ -46,7 +46,7 @@ const overrides = new Map([
     universityRequests++;
     assert.ok(url.includes('/user/index.php?id=3'));
     assert.equal(options.headers.Cookie, 'MoodleSession=TEST');
-    return { ok: true, text: async () => '<table id="participants"><tr><th class="c1"><a href="/user/view.php?id=42&amp;course=3">Student Name</a></th><td class="c2">شاگرد</td></tr></table>' };
+    return { ok: true, text: async () => '<table id="participants"><tr><th class="c1"><a href="/user/view.php?id=42&amp;course=3">Student Name</a></th><td class="c2">شاگرد</td></tr><tr><th class="c1"><a href="/user/view.php?id=9000&amp;course=3">Professor Example</a></th><td class="c2">استاد</td></tr></table>' };
   } }],
   ['sdk/db', { eq: (column, value) => ({ column, value }), sql: () => ({}) }],
   [new URL('schema.js', root).href, { subscriptions: subTable, snapshots: snapTable }],
@@ -188,5 +188,6 @@ assert.equal(universityRequests, cachedRequests, 'persistent roster cache avoids
 await rosterCache.courseRoster(course, {force:true});
 assert.ok(universityRequests > cachedRequests, 'owner refresh fetches a new complete roster');
 await assert.rejects(() => rosterCache.courseRoster(course, {force:true, load:async () => {throw new Error('offline');}}));
+assert.equal(privateSettings.get('participantProfessor:https://vc.kntu.ac.ir#3').name, 'Professor Example');
 assert.equal((await rosterCache.courseRoster(course))[0].name, 'Student Name', 'failed refresh preserves previous roster');
 console.log('Automatic registration, new coverage, paused users, private retry and Persian guidance passed.');

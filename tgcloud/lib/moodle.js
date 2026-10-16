@@ -66,13 +66,18 @@ export function connector(fetcher, credentials) {
     return body;
   }
   return {
+    async participantDirectory(course) {
+      const teachers = new Set();
+      const people = await this.findParticipants(course, null, teachers);
+      return {people, professorName: teachers.size === 1 ? [...teachers][0] : null};
+    },
     async participants(course) {
       return await this.findParticipants(course, null);
     },
     async findParticipant(course, query) {
       return await this.findParticipants(course, [{ name: query }]);
     },
-    async findParticipants(course, queries) {
+    async findParticipants(course, queries, teachers = null) {
       if (mode !== 'session') throw new Error('PARTICIPANTS_SESSION_REQUIRED');
       const id = Number(course.id);
       if (!Number.isSafeInteger(id) || id <= 0) throw new Error('COURSE_ID_REQUIRED');
@@ -84,7 +89,8 @@ export function connector(fetcher, credentials) {
         visited.add(page);
         const body = await html('/user/index.php?id=' + id + '&perpage=5000&page=' + page);
         matchingParticipantsMany(body, queries).forEach(person => matches.set(person.id, person));
-        const { pages } = participantProfessors(body);
+        const { pages, names } = participantProfessors(body);
+        if (teachers) names.forEach(name => teachers.add(name));
         pending.push(...pages.filter(p => !visited.has(p)));
       }
       return [...matches.values()];
