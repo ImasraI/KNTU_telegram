@@ -63,10 +63,13 @@ with the connected session, plus the public pages):
   each course as `آز فيزيك2 [4051-1110274-23]`, and the public course categories do the same.
   One page therefore yields a `Moodle course id → full code` map for the whole enrollment,
   which `/class <id> detect` and the Mini App store as the class's number.
-- The **professor's name is nowhere on the site**: course pages mark no teacher
-  (`teachers: []` on every course), no course contacts are rendered, public listings show
-  only the code, and the only user link on a course page is the logged-in student. That is
-  why the professor comes from this bot's own directory, not from scraping.
+- The **professor's name is on the Participants page** (`/user/index.php?id=<courseId>`),
+  in the row whose role is exactly **استاد**. Session connections now discover it
+  automatically, including later pages, cache it for 24 hours, and include it in
+  notifications and the class directory. `/class <id> detect` refreshes it immediately.
+  Manual professor names/codes take priority. Missing, inaccessible or ambiguous
+  participant lists never block assignment checks. Only the professor name is stored;
+  student records are discarded. API-token connections retain manual naming.
 - Codes are printed `<group>-<course>-<section>`, e.g. `4051-1110274-23`; a code read
   right-to-left (as it appears to the eye in an RTL line) looks like `23-1110274-4051`.
   The class/section is the field that differs per professor, and `deriveLabel` uses the

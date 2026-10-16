@@ -8,7 +8,7 @@ import { notification, digest } from './content.js';
 import { syncCourses } from './sync.js';
 import { planCourses, courseKey, courseIdFromKey, courseList, coveredKeys, lostCoverage } from './plan.js';
 import { destinationFrom, sendTarget, describeDestination } from './destination.js';
-import { bindingMap, professorMap, professorRows, bindingView } from './directory.js';
+import { bindingMap, professorMap, professorRows, bindingView, detectedBinding, refreshProfessor } from './directory.js';
 import { classLine, describeBinding, parseCourseCode } from './classes.js';
 import { enabledAccounts, ensureMigrated, setHealth } from './accounts.js';
 import { notifyOnce } from './notify.js';
@@ -83,10 +83,15 @@ export async function scan({ reason = 'manual' } = {}) {
   if (!claimed.rowsAffected) return { busy: true };
 
   const checkedAt = new Date().toISOString();
-  // Class/professor bindings give every notice a class identity. The site itself
-  // never states the professor, so this comes from the owner's directory.
+  // Manual bindings override names detected from the Participants استاد role.
   const professors = await professorMap();
   const bindings = await bindingMap();
+  const manualBindings = new Map(bindings);
+  for (const course of knownCourses) {
+    const key = courseKey(course);
+    const binding = await detectedBinding(key, bindings.get(key));
+    if (binding) bindings.set(key, binding);
+  }
   const siteCodes = ((await getSetting('siteCourseCodes'))?.codes) ?? {};
   const lineCache = new Map();
   const lineFor = course => {
@@ -126,6 +131,18 @@ export async function scan({ reason = 'manual' } = {}) {
         read: async (course, readerId) => {
           const moodle = readers.get(readerId);
           if (!moodle) throw new Error('ACCOUNT_UNAVAILABLE');
+          // Metadata failures must never prevent assignment checks. Session-mode
+          // names are cached for a day and manual professor bindings take priority.
+          if (accounts.find(a => a.id === readerId)?.mode === 'session') {
+            try {
+              const key = courseKey(course);
+              await refreshProfessor(key, moodle);
+              const binding = await detectedBinding(key, manualBindings.get(key));
+              if (binding) bindings.set(key, binding);
+              else bindings.delete(key);
+              lineCache.delete(key);
+            } catch { /* retain previously detected name */ }
+          }
           return await moodle.items(course);
         },
         load: loadSnapshot,
@@ -219,6 +236,11 @@ export async function publishDigests(onlyCourseIds = null) {
   const courses = (await getSetting('courses')) ?? [];
   const professors = await professorMap();
   const bindings = await bindingMap();
+  for (const course of courses) {
+    const key = courseKey(course);
+    const binding = await detectedBinding(key, bindings.get(key));
+    if (binding) bindings.set(key, binding);
+  }
   const siteCodes = ((await getSetting('siteCourseCodes'))?.codes) ?? {};
   const sent = [];
   for (const entry of pending) {
@@ -268,12 +290,24 @@ export async function detectClassInfo(courseIds = null, limit = 10) {
     const entry = { key: courseKey(course), id: course.id, name: course.fullname,
       codeFromName: parseCourseCode(course.fullname)?.code ?? null,
       siteCode: fromSite?.code ?? null, detected: null, error: null };
+    for (const account of accounts.filter(a => a.mode === 'session')) {
+      try {
+        const moodle = connector(fetch, { mode: account.mode, secret: account.secret });
+        await refreshProfessor(entry.key, moodle, true);
+        const binding = await detectedBinding(entry.key);
+        if (binding?.professorName) {
+          entry.detected = { available: true, teachers: [binding.professorName], codes: [], source: 'participants' };
+          break;
+        }
+      } catch (e) { entry.error = failureCode(e); }
+    }
     // Only fetch a page when the code is still unknown; otherwise the sidebar answered it.
     if (!entry.siteCode) {
       for (const account of accounts) {
         try {
           const moodle = connector(fetch, { mode: account.mode, secret: account.secret });
-          entry.detected = await moodle.meta(course);
+          const meta = await moodle.meta(course);
+          entry.detected = { ...meta, teachers: entry.detected?.teachers ?? meta.teachers };
         } catch (e) { entry.error = failureCode(e); }
         if (entry.detected?.available) break; // a token account cannot render a page
       }
@@ -291,6 +325,11 @@ export async function directorySummary() {
   const map = new Map(professors.map(row => [String(row.code), row.name]));
   const bindings = await bindingMap();
   const courses = (await getSetting('courses')) ?? [];
+  for (const course of courses) {
+    const key = courseKey(course);
+    const binding = await detectedBinding(key, bindings.get(key));
+    if (binding) bindings.set(key, binding);
+  }
   const siteCodes = ((await getSetting('siteCourseCodes'))?.codes) ?? {};
   return {
     professors: professors.map(row => ({ code: row.code, name: row.name })),

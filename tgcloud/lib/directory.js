@@ -2,6 +2,21 @@ import { db } from 'sdk';
 import { eq } from 'sdk/db';
 import { professors, classBindings } from '../schema.js';
 import { normalizeSpaces } from './classes.js';
+import { getSetting, putSetting } from './settings.js';
+
+export async function detectedBinding(key, binding = null) {
+  if (binding?.professorName || binding?.professorCode) return binding;
+  const found = await getSetting('participantProfessor:' + key);
+  return found?.name ? { ...binding, key, professorName: found.name, source: binding?.source ?? 'participants' } : binding;
+}
+
+export async function refreshProfessor(key, moodle, force = false) {
+  const setting = 'participantProfessor:' + key;
+  const old = await getSetting(setting);
+  if (!force && old?.at && Date.now() - old.at < 86400000) return;
+  const name = await moodle.professor({ id: Number(key.slice(key.lastIndexOf('#') + 1)) });
+  await putSetting(setting, { name, at: Date.now() });
+}
 
 // The professor directory: the code segment the university prints → a name.
 export async function professorMap() {

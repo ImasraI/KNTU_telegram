@@ -1,4 +1,5 @@
 import { BASE, ORIGIN } from './config.js';
+import { participantProfessors } from './participants.js';
 import { plain, safeLink, parseCourse, parseAssignment, tree, nodes, nodeText, extractCourseMeta, extractEnrollmentCodes } from './content.js';
 
 // What a scan can and cannot see (kept honest in the README as well):
@@ -65,6 +66,25 @@ export function connector(fetcher, credentials) {
     return body;
   }
   return {
+    async professor(course) {
+      if (mode !== 'session') return null;
+      const id = Number(course.id);
+      if (!Number.isSafeInteger(id) || id <= 0) throw new Error('COURSE_ID_REQUIRED');
+      const first = participantProfessors(await html('/user/index.php?id=' + id + '&perpage=5000'));
+      const names = new Set(first.names);
+      const pending = [...first.pages], visited = new Set([0]);
+      while (pending.length) {
+        const page = pending.shift();
+        if (visited.has(page)) continue;
+        if (visited.size >= 20) throw new Error('PARTICIPANTS_PAGE_LIMIT');
+        visited.add(page);
+        const next = participantProfessors(await html('/user/index.php?id=' + id + '&perpage=5000&page=' + page));
+        next.names.forEach(name => names.add(name));
+        pending.push(...next.pages.filter(p => !visited.has(p)));
+      }
+      // Do not guess when the course has zero or multiple professors.
+      return names.size === 1 ? [...names][0] : null;
+    },
     async courses() {
       if (mode === 'token') {
         const info = await rpc('core_webservice_get_site_info');
