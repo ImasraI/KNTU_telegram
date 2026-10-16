@@ -1,5 +1,18 @@
 # KNTU Aid Bot
 
+## Optional personal VC connection
+
+`/personal` opens an owner-scoped form in the bot's private chat. It uses a separate
+Cloudflare Worker and encrypted D1 database; personal sessions and course snapshots
+never enter the shared contributor-account pipeline. Password retention for automatic
+SSO renewal is opt-in and disabled by default. The feature stays disabled until
+`PERSONAL_APP_URL` and the separate service are configured.
+
+Deployment and Telegram acceptance tests: [راهنمای اتصال شخصی](docs/personal-vc-setup.fa.md).
+Run `node --test` with Node 22.13+ (Node 24 recommended). This change does not require
+a Telegram database migration. Live authenticated SSO login still needs acceptance
+testing with the student's own account; public VC-to-SSO discovery was verified.
+
 Telegram Serverless bot for [@KNTU_aidbot](https://t.me/KNTU_aidbot). It follows enrolled
 Moodle courses at <https://vc.kntu.ac.ir> for a small set of university accounts and
 posts new/changed course activities into one chosen group/topic.

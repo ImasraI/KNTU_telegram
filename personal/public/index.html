@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>اتصال شخصی VC</title><link rel="stylesheet" href="/style.css"></head>
+<body><main><h1>حساب شخصی دانشگاه</h1>
+<p>این اتصال فقط برای حساب تلگرام شماست؛ اطلاعاتش وارد گروه، فهرست عمومی یا حساب‌های همکاری نمی‌شود. استفاده اختیاری است.</p>
+<p>ورود با حساب دانشگاهی در sso.kntu.ac.ir انجام می‌شود. رمز را فقط در این فرم وارد کنید، نه در چت.</p>
+<form id="connect"><label>نام کاربری دانشگاه<input id="username" autocomplete="username" maxlength="150" required></label>
+<label>رمز ورود<input id="password" type="password" autocomplete="current-password" maxlength="512" required></label>
+<label class="check"><input id="remember" type="checkbox"> رمز برای ورود مجدد خودکار ذخیره شود (اختیاری)</label>
+<small>در صورت انتخاب، رمز و نشست در دیتابیس جدا با رمزنگاری نگهداری می‌شوند. بدون این انتخاب، رمز ذخیره نمی‌شود و پس از انقضای نشست باید دوباره وارد شوید. قطع اتصال اطلاعات ذخیره‌شده را حذف می‌کند؛ نشست دانشگاه را از داخل دانشگاه لغو کنید.</small>
+<button type="submit">ورود و اتصال شخصی</button></form>
+<p id="message" role="status"></p><section id="status"></section>
+<button id="refresh" type="button">همگام‌سازی حساب من</button><button id="reload" type="button">نمایش وضعیت</button>
+<button id="disconnect" class="danger" type="button">قطع اتصال و حذف اطلاعات ورود</button>
+<h2>درس‌های حساب من</h2><ul id="courses"></ul><h2>فعالیت‌های آخرین همگام‌سازی</h2><ul id="items"></ul>
+<small>پس از اتصال، برای نخستین همگام‌سازی یک دقیقه صبر کنید یا منتظر بررسی زمان‌بندی‌شده بمانید. نخستین خواندن هر درس، تاریخچه را بی‌صدا ثبت می‌کند؛ تغییرات بعدی فقط در پیوی شما ارسال می‌شوند. اگر فرم بیش از ده دقیقه باز مانده، آن را ببندید و از /personal دوباره باز کنید.</small>
+</main><script src="https://telegram.org/js/telegram-web-app.js"></script><script src="/app.js"></script></body></html>

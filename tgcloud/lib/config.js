@@ -6,6 +6,9 @@ export const GROUP_ID = 0;
 export const BASE = 'https://vc.kntu.ac.ir';
 // Deployed setup Mini App (printed by `tgcloud push`).
 export const MINI_APP_URL = 'https://app8298297292.tgcloud.ai/';
+// Deploy personal/wrangler.jsonc first; set its HTTPS root URL here.
+// Empty means disabled. Never place credentials in this URL.
+export const PERSONAL_APP_URL = '';
 // The only university origin this bot talks to. Requests to any other origin are
 // refused before they are made (see lib/moodle.js).
 export const ORIGIN = BASE;
