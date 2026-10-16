@@ -93,8 +93,9 @@ deletion), راهنما (steps, privacy, cooperation, contact).
 - Follows the Telegram theme (`themeParams`, `themeChanged`) with light/dark fallbacks,
   safe-area insets, and reduced-motion support.
 - States: loading skeletons, empty lists, partial coverage, stale/unknown scans, a
-  retryable error banner, and a blocking overlay with an explanation while a
-  registration lookup runs (it can take up to a minute).
+  retryable error banner, a short overlay while the registration request is saved (it
+  does no university I/O), and a queued notice that points at the private chat for the
+  result. A background follow-up re-renders the page once courses are attached.
 - The field, prompt and hint for the VC display name come from the server payload, so the
   client never restates policy and no login username is ever requested.
 
@@ -129,8 +130,10 @@ course reads 11 minutes old.
 
 ## Limitations
 
-- A registration lookup reads Participants course by course and can take up to a minute;
-  a second lookup inside a minute is refused (cooldown).
+- Registration itself is instant (it only saves the request); resolving the name reads
+  cached rosters on demand and can wait for the 30-minute scheduled scan if the
+  university does not answer, so courses may appear minutes later. A second request
+  inside a minute is refused (cooldown).
 - Name matching is not identity verification: an exact displayed-name match registers the
   courses, ambiguous names are rejected and need `@Arsam_alaei`.
 - The feed's order is course order, then module order — KNTU exposes deadlines as text, so

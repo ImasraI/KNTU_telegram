@@ -30,7 +30,10 @@ name matches (including later participant pages) activate courses automatically.
 No selection or confirmation step is shown. Ambiguous matches are rejected;
 unavailable lists are reported as incomplete, with a note to contact @Arsam_alaei.
 Only covered courses can be found. A name match is not identity verification.
-The lookup reads rosters transiently and retains no complete roster.
+The lookup matches against a server-side roster cache — one entry per course,
+held in private settings, keeping only the displayed name and the Moodle
+participant id. Student-facing responses never include it, and nothing is sent
+to the university from inside a request.
 
 The same registration runs in the Mini App's **من** tab: one field for the displayed VC
 name, no selection screen, and the same cooldown, ambiguity and incomplete-coverage
