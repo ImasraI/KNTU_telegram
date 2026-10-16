@@ -1,4 +1,5 @@
 import { api } from 'sdk';
+import { recordBotUse, botUsersPage } from '../lib/subscriptions.js';
 import { refreshRosters } from '../lib/roster-cache.js';
 import { OWNER_ID, SETUP_APP_URL, PERSONAL_APP_URL } from '../lib/config.js';
 import { personalCommand } from '../lib/personal-bot.js';
@@ -17,7 +18,7 @@ const CLASS_HELP = ['تنظیم کلاس (فقط مدیر):', '/classes — فه
   '/class 3 time 9:00 - 10:30 — نمایش زمان به جای شماره',
   '/class 3 time clear — بازگشت به شماره', '/class 3 detect — تازه‌سازی نام استاد',
   '/class 3 clear — حذف تنظیم دستی'].join('\n');
-const ADMIN_HELP = ['مدیریت ربات:', '/setup — اتصال دانشگاه', '/check — بررسی فوری',
+const ADMIN_HELP = ['مدیریت ربات:', '/users [صفحه] — کاربران و آخرین استفاده (فقط پیوی)', '/setup — اتصال دانشگاه', '/check — بررسی فوری',
   '/refreshparticipants [شماره درس] — تازه‌سازی فهرست شرکت‌کنندگان', '/status — وضعیت اتصال‌ها', '/accounts — حساب‌های همکاری', '/classes — تنظیم کلاس‌ها',
   '/approve شناسه نام — تأیید همکار', '/revoke شناسه — لغو همکاری',
   '/bind — ثبت مقصد در گروه یا موضوع', '/unbind — حذف مقصد', '/destination — مقصد فعلی',
@@ -29,6 +30,7 @@ export default async function (message) {
   if (!fromId || !message?.text) return;
   const [raw, ...args] = String(message.text).trim().split(/\s+/);
   if (/@\w+$/.test(raw) && !/@KNTU_aidbot$/i.test(raw)) return;
+  try { await recordBotUse(message); } catch { /* usage logging must not block commands */ }
   const personal = personalCommand(message, PERSONAL_APP_URL);
   if (personal) return await api.sendMessage(personal);
   const command = raw.replace(/@\w+$/, '').toLowerCase();
@@ -64,6 +66,10 @@ export default async function (message) {
     if (!owner) {
       if (!command.startsWith('/')) await reply('از دکمه‌های منو استفاده کنید یا /help را بزنید.');
       return;
+    }
+    if (command === '/users') {
+      if (!privateChat) return await reply('فهرست کاربران فقط در پیوی مدیر نمایش داده می‌شود.');
+      return await reply(await botUsersPage(/^\d+$/.test(args[0] ?? '') ? Number(args[0]) : 1));
     }
     if (command === '/admin') return await reply(ADMIN_HELP);
     if (command === '/approve' || command === '/revoke') {

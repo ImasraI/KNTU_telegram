@@ -287,3 +287,34 @@ export async function deliverPersonal(courses, lineFor, max = 100) {
   }
   return { sent, failed };
 }
+
+// Usage metadata only: never save message text or login credentials.
+export async function recordBotUse(message) {
+  const person = message?.from;
+  if (!person?.id || person.is_bot) return;
+  if (message.chat?.type !== 'private' && !String(message.text ?? '').startsWith('/')) return;
+  const user = await subscriber(person.id);
+  const old = user?.profile?.usage ?? {};
+  const now = Date.now();
+  await saveSubscriber(person.id, {profile:{...user?.profile, usage:{
+    name: [person.first_name,person.last_name].filter(Boolean).join(' ').replace(/[\r\n]/g,' ').slice(0,100),
+    username: String(person.username ?? '').replace(/[^a-zA-Z0-9_]/g,'').slice(0,32),
+    firstAt: old.firstAt ?? now, lastAt: now,
+  }}});
+}
+
+export async function botUsersPage(page = 1) {
+  const rows = (await db.select().from(subscriptions).all()).sort((a,b) => (b.profile?.usage?.lastAt ?? 0) - (a.profile?.usage?.lastAt ?? 0));
+  const pages = Math.max(1, Math.ceil(rows.length/10));
+  const current = Math.min(pages,Math.max(1,Number(page)||1));
+  return [`کاربران شناخته‌شدهٔ ربات: ${rows.length} — صفحهٔ ${current} از ${pages}`,
+    ...rows.slice((current-1)*10,current*10).map(row => {
+      const usage = row.profile?.usage;
+      return [usage?.name || 'نام تلگرام ثبت نشده', usage?.username ? '@'+usage.username : '',
+        `شناسه: ${row.tgId}`, row.profile?.registered ? 'ثبت‌نام درسی: انجام شده' : 'ثبت‌نام درسی: انجام نشده',
+        usage?.lastAt ? 'آخرین استفاده: '+new Date(usage.lastAt).toISOString()+' (UTC)' : 'زمان استفادهٔ قبلی ثبت نشده'].filter(Boolean).join(' — ');
+    }),
+    'ردیابی استفاده از زمان این به‌روزرسانی است؛ کاربران قدیمی فقط در صورت داشتن سابقهٔ ثبت‌نام دیده می‌شوند.',
+    'صفحهٔ بعد: /users '+(current+1),
+  ].join('\n\n');
+}

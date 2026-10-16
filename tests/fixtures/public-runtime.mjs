@@ -196,3 +196,10 @@ assert.ok(universityRequests > beforeBackfill, 'legacy cached rosters backfill m
 assert.equal(privateSettings.get('participantProfessor:https://vc.kntu.ac.ir#3').name, 'Professor Example');
 assert.equal((await rosterCache.courseRoster(course))[0].name, 'Student Name', 'failed refresh preserves previous roster');
 console.log('Automatic registration, new coverage, paused users, private retry and Persian guidance passed.');
+
+await sub.recordBotUse({chat:{type:'private'},from:{id:888,first_name:'Test',username:'example'},text:'sensitive input never stored'});
+assert.equal(records.get(888).profile.usage.name, 'Test');
+assert.ok(!JSON.stringify(records.get(888)).includes('sensitive input'));
+assert.ok((await sub.botUsersPage()).includes('@example'));
+assert.ok(policy.PUBLIC_HELP.indexOf('/register') < policy.PUBLIC_HELP.indexOf('/courses'));
+assert.ok(policy.PUBLIC_HELP.indexOf('/personal') < policy.PUBLIC_HELP.indexOf('/courses'));
