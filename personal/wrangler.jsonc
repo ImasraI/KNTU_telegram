@@ -3,6 +3,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-10-16",
   "workers_dev": true,
+  "build": { "command": "node scripts/build-personal.mjs" },
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
   "triggers": { "crons": ["9,39 * * * *"] },
   "d1_databases": [{ "binding": "PERSONAL_DB", "database_name": "kntu-personal-vc", "database_id": "7ccb9007-d398-45e8-8af1-435556e28b46" }],

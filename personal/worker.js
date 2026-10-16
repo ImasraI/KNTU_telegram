@@ -117,7 +117,8 @@ export async function refreshPersonal(env,id,{request=fetch,notify=false,login=u
 export async function handleRequest(request,env,{upstream=fetch,login=universityLogin}={}) {
   const url=new URL(request.url);
   if(!url.pathname.startsWith('/api/')) {
-    if(request.method!=='GET'||!['/','/index.html'].includes(url.pathname)) return new Response('Not found',{status:404});
+    const publicAssets = new Set(['/','/index.html','/theme.css','/style.css','/app.js']);
+    if(!['GET','HEAD'].includes(request.method)||!publicAssets.has(url.pathname)) return new Response('Not found',{status:404});
     const res=await env.ASSETS.fetch(request);
     const headers=new Headers(res.headers);
     headers.set('Cache-Control','no-store'); headers.set('Referrer-Policy','no-referrer');

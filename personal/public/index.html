@@ -1,16 +1,67 @@
 <!doctype html>
-<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>اتصال شخصی VC</title><link rel="stylesheet" href="/style.css"></head>
-<body><main><h1>حساب شخصی دانشگاه</h1>
-<p>این اتصال فقط برای حساب تلگرام شماست؛ اطلاعاتش وارد گروه، فهرست عمومی یا حساب‌های همکاری نمی‌شود. استفاده اختیاری است.</p>
-<p>ورود با حساب دانشگاهی در sso.kntu.ac.ir انجام می‌شود. رمز را فقط در این فرم وارد کنید، نه در چت.</p>
-<form id="connect"><label>نام کاربری دانشگاه<input id="username" autocomplete="username" maxlength="150" required></label>
-<label>رمز ورود<input id="password" type="password" autocomplete="current-password" maxlength="512" required></label>
-<label class="check"><input id="remember" type="checkbox"> رمز برای ورود مجدد خودکار ذخیره شود (اختیاری)</label>
-<small>در صورت انتخاب، رمز و نشست در دیتابیس جدا با رمزنگاری نگهداری می‌شوند. بدون این انتخاب، رمز ذخیره نمی‌شود و پس از انقضای نشست باید دوباره وارد شوید. قطع اتصال اطلاعات ذخیره‌شده را حذف می‌کند؛ نشست دانشگاه را از داخل دانشگاه لغو کنید.</small>
-<button type="submit">ورود و اتصال شخصی</button></form>
-<p id="message" role="status"></p><section id="status"></section>
-<button id="refresh" type="button">همگام‌سازی حساب من</button><button id="reload" type="button">نمایش وضعیت</button>
-<button id="disconnect" class="danger" type="button">قطع اتصال و حذف اطلاعات ورود</button>
-<h2>درس‌های حساب من</h2><ul id="courses"></ul><h2>فعالیت‌های آخرین همگام‌سازی</h2><ul id="items"></ul>
-<small>پس از اتصال، برای نخستین همگام‌سازی یک دقیقه صبر کنید یا منتظر بررسی زمان‌بندی‌شده بمانید. نخستین خواندن هر درس، تاریخچه را بی‌صدا ثبت می‌کند؛ تغییرات بعدی فقط در پیوی شما ارسال می‌شوند. اگر فرم بیش از ده دقیقه باز مانده، آن را ببندید و از /personal دوباره باز کنید.</small>
-</main><script src="https://telegram.org/js/telegram-web-app.js"></script><script src="/app.js"></script></body></html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>حساب شخصی — ربات خواجه نصیر</title>
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#view">پرش به محتوا</a>
+<header class="topbar">
+  <div class="topbar-text"><span class="topbar-title">حساب شخصی دانشگاه</span>
+    <span class="freshness" id="freshness"><span class="dot"></span><span class="freshness-text" id="freshness-text">در حال بارگذاری…</span></span>
+  </div>
+  <button id="reload" class="iconbtn" type="button" aria-label="تازه‌سازی وضعیت"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z"/></svg></button>
+</header>
+<main class="view" id="view" tabindex="-1">
+  <p id="message" class="notice" role="status" aria-live="polite" hidden></p>
+  <section data-view="home" aria-label="خلاصه حساب">
+    <div class="card hero">
+      <div class="hero-top"><div><span class="muted">دستیار شخصی VC</span><h1 id="hero-title">درس‌های شما، یک‌جا</h1></div><span id="connection-chip" class="chip">در حال بررسی</span></div>
+      <p id="hero-description" class="muted">درس‌ها و فعالیت‌های حساب دانشگاهی خودتان را اینجا دنبال کنید.</p>
+      <div class="stat-row"><div class="stat"><b id="course-count">—</b><span>درس من</span></div><div class="stat"><b id="assignment-count">—</b><span>تکلیف ثبت‌شده</span></div><div class="stat"><b id="quiz-count">—</b><span>آزمون ثبت‌شده</span></div></div>
+      <button id="refresh" class="btn" type="button" disabled>همگام‌سازی حساب من</button>
+      <button id="start-connect" class="btn" type="button" data-tab="account" hidden>اتصال حساب دانشگاهی</button>
+      <span id="sync-hint" class="muted">در حال دریافت وضعیت حساب…</span>
+    </div>
+    <div class="section"><div class="section-head"><h2>فعالیت‌های درس‌ها</h2><button class="linkbtn" type="button" data-tab="activity">مشاهده همه</button></div><div id="recent" class="card"></div></div>
+    <div class="notice section privacy-note"><span class="privacy-dot" aria-hidden="true"></span><div><b>فقط برای خودتان</b><p>اطلاعات این حساب در گروه یا فهرست عمومی ربات نمایش داده نمی‌شود.</p></div></div>
+  </section>
+  <section data-view="courses" aria-labelledby="courses-title" hidden>
+    <div class="section-head"><h1 id="courses-title">درس‌های من</h1><span id="courses-total" class="chip">—</span></div>
+    <p class="muted section-intro">درس‌های دریافت‌شده از حساب شخصی شما در VC</p><div id="courses" class="grid courses"></div>
+  </section>
+  <section data-view="activity" aria-labelledby="activity-title" hidden>
+    <div class="section-head"><h1 id="activity-title">فعالیت‌های من</h1><span id="items-total" class="chip">—</span></div>
+    <div class="segmented" id="filters" aria-label="نوع فعالیت"><button type="button" data-filter="all" aria-pressed="true">همه</button><button type="button" data-filter="assign" aria-pressed="false">تکلیف‌ها</button><button type="button" data-filter="quiz" aria-pressed="false">آزمون‌ها</button><button type="button" data-filter="files" aria-pressed="false">فایل‌ها و مطالب</button></div>
+    <p class="muted section-intro">اطلاعات آخرین همگام‌سازی؛ ممکن است شامل مهلت‌های گذشته باشد.</p><div id="items" class="card"></div>
+  </section>
+  <section data-view="account" aria-labelledby="account-title" hidden>
+    <div class="section-head"><h1 id="account-title">حساب و حریم خصوصی</h1><span class="chip accent">شخصی</span></div>
+    <div id="account-summary" class="card" hidden><div class="section-head"><h2>اتصال دانشگاه</h2><span id="account-state" class="chip"></span></div><dl class="account-details"><div><dt>ورود مجدد خودکار</dt><dd id="renewal-state">—</dd></div><div><dt>آخرین همگام‌سازی</dt><dd id="last-sync">—</dd></div></dl><button id="reconnect" type="button" class="btn ghost">ورود دوباره یا تغییر تنظیمات</button></div>
+    <div id="login-card" class="card section">
+      <h2>اتصال حساب دانشگاهی</h2><p class="muted section-intro">با همان نام کاربری و رمز حساب دانشگاهی وارد شوید. اتصال اختیاری است.</p>
+      <form id="connect">
+        <label class="field" for="username"><span>نام کاربری دانشگاه</span><input class="input" id="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="150" required placeholder="نام کاربری حساب دانشگاهی"></label>
+        <label class="field" for="password"><span>رمز ورود</span><span class="password-field"><input class="input" id="password" type="password" autocomplete="current-password" maxlength="512" required placeholder="رمز حساب دانشگاهی"><button class="password-toggle" id="toggle-password" type="button" aria-label="نمایش رمز" aria-pressed="false">نمایش</button></span></label>
+        <label class="renewal-option" for="remember"><span><b>ورود مجدد خودکار</b><small>با اجازه شما، رمز برای تازه‌سازی اتصال ذخیره می‌شود.</small></span><input id="remember" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
+        <p class="muted form-note">این گزینه اختیاری و پیش‌فرض خاموش است. بدون آن، پس از انقضای اتصال باید دوباره وارد شوید.</p>
+        <button class="btn" id="connect-button" type="submit">ورود و اتصال شخصی</button>
+      </form>
+    </div>
+    <details class="card section"><summary>حریم خصوصی و راهنمای اتصال</summary><div class="details-body"><p>رمز را فقط در همین فرم وارد کنید، نه در چت تلگرام. ورود از طریق حساب دانشگاهی انجام می‌شود.</p><p>نشست و در صورت انتخاب شما رمز، به‌صورت رمزنگاری‌شده نگهداری می‌شوند. داده این اتصال با حساب‌های همکاری و گروه‌ها مشترک نیست.</p><p>پس از اتصال یک دقیقه صبر کنید و همگام‌سازی را بزنید. نخستین دریافت هر درس بی‌صداست؛ تغییرات بعدی در پیوی شما ارسال می‌شوند.</p><p>قطع اتصال، اطلاعات ورود و کش شخصی را حذف می‌کند. برای لغو نشست دانشگاه، از تنظیمات خود دانشگاه اقدام کنید.</p></div></details>
+    <div id="disconnect-card" class="section" hidden><button id="disconnect" class="btn danger" type="button">قطع اتصال و حذف اطلاعات شخصی</button></div>
+  </section>
+</main>
+<nav class="tabbar personal-tabs" aria-label="بخش‌های حساب شخصی">
+  <button type="button" data-tab="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z"/></svg><span>خانه</span></button>
+  <button type="button" data-tab="courses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5Zm2 6h10v2H7Zm0 4h10v2H7Zm0 4h6v2H7Z"/></svg><span>درس‌ها</span></button>
+  <button type="button" data-tab="activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10v3H7Zm-2 4h14v16H5Zm3 4h8v2H8Zm0 4h8v2H8Z"/></svg><span>فعالیت‌ها</span></button>
+  <button type="button" data-tab="account"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm0 11c4.4 0 8 2.5 8 5.5V21H4v-1.5C4 16.5 7.6 14 12 14Z"/></svg><span>حساب من</span></button>
+</nav>
+<script src="https://telegram.org/js/telegram-web-app.js"></script><script src="/app.js"></script>
+</body></html>

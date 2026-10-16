@@ -125,6 +125,17 @@ npx wrangler@4 deploy --config cloudflare/wrangler.jsonc
 
 ## عیب‌یابی
 
+### به‌روزرسانی ظاهر مینی‌اپ شخصی
+
+پس از گرفتن آخرین کد، فقط Worker شخصی را دوباره deploy کنید:
+
+```powershell
+git pull origin master
+npx wrangler@4 deploy --config personal/wrangler.jsonc
+```
+
+فرمان build به‌صورت خودکار استایل مشترک را از `web/app.css` به `personal/public/theme.css` همگام می‌کند. برای این تغییر نیازی به ساخت دوباره دیتابیس، تغییر Secret یا انتشار مجدد بات نیست. مینی‌اپ را کامل ببندید و از `/personal` دوباره باز کنید. فایل‌های CSS و JavaScript از مسیرهای صریح عمومی Worker سرو می‌شوند؛ دریافت فایل‌های داخلی سرویس مجاز نیست.
+
 - **سرویس راه‌اندازی نشده:** PERSONAL_APP_URL هنوز خالی است یا بات push نشده.
 - **SERVER_CONFIG:** یکی از BOT_TOKEN، VAULT_KEY یا binding دیتابیس تنظیم نشده.
 - **UNAUTHORIZED:** BOT_TOKEN با بات بازکننده فرم یکسان نیست، initData منقضی است، صفحه خارج تلگرام باز شده یا Origin نادرست است. فرم را از پیوی دوباره باز کنید.
