@@ -5,7 +5,7 @@ import { getSetting } from '../lib/settings.js';
 import { directorySummary } from '../lib/monitor.js';
 import { courseKey } from '../lib/plan.js';
 import { CONTACT, FULL_NAME_HINT, FULL_NAME_LABEL, FULL_NAME_PROMPT, PRIVACY, PUBLIC_COMMANDS } from '../lib/student-policy.js';
-import { COURSE_SUPPORT, forgetSubscriber, registerStudent, resumeStudent, stopStudent, subscriber } from '../lib/subscriptions.js';
+import { COURSE_SUPPORT, forgetSubscriber, registerStudent, refreshRegistration, resumeStudent, stopStudent, subscriber } from '../lib/subscriptions.js';
 import { FILTERS, PAGE_SIZE, courseCounts, courseView, coverageView, freshness, helpView, itemView, newestRead, pageItems, selectItems, studentState } from '../lib/student-view.js';
 
 // The public student Mini App's only endpoint.
@@ -153,6 +153,11 @@ export default async function (input, ctx) {
 
   // Everything below is the caller's own data; a caller-supplied id is ignored.
   const caller = requireCaller(callerId);
+
+  if (action === 'refreshRegistration') {
+    await refreshRegistration(caller);
+    return await payload(caller, Date.now());
+  }
 
   if (action === 'register') {
     const result = await registerStudent(caller, input?.name);

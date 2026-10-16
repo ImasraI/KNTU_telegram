@@ -1,7 +1,7 @@
 import { api } from 'sdk';
 import { MINI_APP_URL } from './config.js';
 import { PUBLIC_HELP, PRIVACY, selectedIds, consented, validFullName, isExam, FULL_NAME_PROMPT, FULL_NAME_HINT } from './student-policy.js';
-import { subscriber, saveSubscriber, forgetSubscriber, confirmSubscription, savedItems, registerDetected, registerStudent, stopStudent, resumeStudent, COURSE_SUPPORT } from './subscriptions.js';
+import { subscriber, saveSubscriber, forgetSubscriber, confirmSubscription, savedItems, registerDetected, registerStudent, refreshRegistration, stopStudent, resumeStudent, COURSE_SUPPORT } from './subscriptions.js';
 import { directorySummary } from './monitor.js';
 import { notification } from './content.js';
 import { canConnect } from './authorize.js';
@@ -102,7 +102,7 @@ export async function handlePublic(message, role) {
     await reply('ثبت یا تغییر درس‌ها لغو شد؛ تنظیمات ثبت‌شدهٔ قبلی حفظ شد.', MENU); return true;
   }
   if (command === '/mycourses') {
-    if (user?.profile?.lookupPending) await reply('⏳ بررسی نام شما در صف است؛ نتیجه پس از بررسی زمان‌بندی‌شده، معمولاً تا ۳۰ دقیقه، همین‌جا ارسال می‌شود.');
+    if (user?.profile?.lookupPending) await reply('⏳ بررسی نام شما در حال انجام است؛ اگر دانشگاه پاسخ ندهد، خودکار دوباره تلاش می‌کنیم.');
     const directory = await directorySummary();
     const courses = directory.courses.filter(c => user?.profile?.courses?.includes(String(c.id)));
     await sendBlocks(reply, courses.map(c => `#${c.id} ${c.name}\n${c.line ?? ''}`),
@@ -157,7 +157,8 @@ async function registerByFullName(tgId, name, reply) {
   if (Date.now() - (user?.profile?.lookupAt ?? 0) < 60000) { await reply('برای جست‌وجوی بعدی یک دقیقه صبر کنید.'); return true; }
   const result = await registerStudent(tgId, clean);
   if (result.state === 'queued') {
-    await reply('✅ نام شما ثبت شد و بررسی درس‌ها در صف قرار گرفت. نتیجه پس از بررسی زمان‌بندی‌شده، معمولاً تا ۳۰ دقیقه، همین‌جا ارسال می‌شود. لازم نیست منتظر بمانید یا نام را دوباره بفرستید.\n/mycourses برای وضعیت؛ /stop برای توقف\n' + COURSE_SUPPORT, MENU);
+    await reply('✅ نام شما ثبت شد؛ همین حالا درس‌ها را بررسی می‌کنم و نتیجه را همین‌جا می‌فرستم. اگر دانشگاه پاسخ ندهد، درخواست شما برای تلاش خودکار بعدی ذخیره می‌ماند.\n/mycourses برای وضعیت؛ /stop برای توقف\n' + COURSE_SUPPORT, MENU);
+    try { await refreshRegistration(tgId); } catch { await reply('دانشگاه فعلاً پاسخ نداد؛ درخواست شما ذخیره شده و خودکار دوباره بررسی می‌شود.'); }
     return true;
   }
   if (result.state === 'cooldown') { await reply('درخواست شما قبلاً ثبت شده است؛ برای وضعیت /mycourses را بزنید یا یک دقیقه بعد دوباره تلاش کنید.'); return true; }

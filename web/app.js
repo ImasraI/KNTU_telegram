@@ -274,7 +274,7 @@ function viewHome() {
 }
 
 function registerResultCard(result) {
-  if (result.queued) return `<div class="notice ok"><b>درخواست ثبت شد</b>نتیجهٔ بررسی درس‌ها پس از بررسی زمان‌بندی‌شده، معمولاً تا ۳۰ دقیقه، در پیام خصوصی ربات ارسال می‌شود.</div>`;
+  if (result.queued) return `<div class="notice ok"><b>درخواست ثبت شد</b>درس‌ها همین حالا بررسی می‌شوند؛ نتیجه در این صفحه و پیام خصوصی ربات نمایش داده می‌شود. اگر دانشگاه پاسخ ندهد، خودکار دوباره تلاش می‌کنیم.</div>`;
   if (result.ambiguous) {
     return `<div class="notice warn" style="margin-bottom:12px"><b>درس‌های شما ثبت نشد</b>
       در فهرست شرکت‌کنندگان چند نفر با این نام پیدا شدند و برای جلوگیری از اشتباه چیزی متصل نشد. ${escapeHtml(state.data.policy.support)}</div>`;
@@ -524,6 +524,7 @@ async function register(name) {
     const data = await call('register', { name });
     state.data = { ...data };
     state.registerResult = data.result;
+    if (data.result.queued) void refreshRegisteredCourses();
     state.tab = data.result.ambiguous || !data.result.courses.length ? 'home' : 'me';
     toast(data.result.queued ? 'درخواست ثبت شد؛ نتیجه در پیام خصوصی ربات ارسال می‌شود.' : data.result.ambiguous ? 'نام شما هم‌نام داشت؛ برای بررسی به پشتیبان پیام بدهید.'
       : data.result.courses.length ? `${fa(data.result.courses.length)} درس شناسایی و ثبت شد.`
@@ -533,6 +534,18 @@ async function register(name) {
   } finally {
     setBusy(false);
     render();
+  }
+}
+
+async function refreshRegisteredCourses() {
+  try {
+    const data = await call('refreshRegistration');
+    state.data = { ...data };
+    state.registerResult = data.me.registered ? { queued: data.me.registrationPending, courses: data.me.courses, ambiguous: data.me.ambiguous } : null;
+    if (data.me.courses.length) state.tab = 'me';
+    render();
+  } catch {
+    toast('بررسی هنوز کامل نشده؛ درخواست ذخیره شده و نتیجه در پیام خصوصی ارسال می‌شود.');
   }
 }
 

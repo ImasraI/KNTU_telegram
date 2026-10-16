@@ -95,15 +95,7 @@ assert.ok(!messages.some(m => /نام کاربری ورود به VC را بفر�
 // /register <full name> registers directly, with no selection or confirmation step.
 const beforeRegister = universityRequests;
 await send('/register Student Name');
-assert.equal(universityRequests, beforeRegister, 'registration must not wait on university HTTP');
-assert.equal(records.get(123).profile.lookupPending, true);
-assert.deepEqual(records.get(123).profile.courses, []);
-assert.ok(messages.at(-1).text.includes('در صف'));
-failPrivate = true;
-await sub.refreshStudentCoverage([{ course, readers: ['acc_a'] }]);
-assert.equal(records.get(123).profile.lookupPending, true, 'failed result delivery stays queued');
-failPrivate = false;
-await sub.refreshStudentCoverage([{ course, readers: ['acc_a'] }]);
+assert.ok(universityRequests > beforeRegister, 'chat registration starts the lookup immediately');
 assert.equal(records.get(123).profile.lookupPending, false);
 assert.deepEqual(records.get(123).profile.courses, ['3']);
 assert.equal(records.get(123).profile.pending, null);
@@ -158,7 +150,7 @@ assert.deepEqual(records.get(789).profile.courses, []); // Known Moodle id preve
 await sub.saveSubscriber(321, { active: false, profile: { stage: 'username', username: 'legacy_login' }, seen: {} });
 const legacySend = text => handlePublic({ chat: { id: 321, type: 'private' }, from: { id: 321 }, text }, 'none');
 assert.equal(await legacySend('Student Name'), true);
-assert.equal(records.get(321).profile.lookupPending, true);
+assert.equal(records.get(321).profile.lookupPending, false);
 await sub.refreshStudentCoverage(plan);
 assert.deepEqual(records.get(321).profile.courses, ['3']);
 assert.equal(records.get(321).profile.participantId, '42');

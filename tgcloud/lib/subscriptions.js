@@ -87,7 +87,7 @@ export async function resumeStudent(tgId) {
 }
 
 // Queue registration from the chat or Mini App without university I/O.
-// The scheduled coverage scan resolves the displayed name and reports privately.
+// An immediate follow-up resolves the name; scheduled coverage retries failures.
 export async function registerStudent(tgId, name) {
   const clean = String(name ?? '').trim();
   if (!validFullName(clean)) return { state: 'name-invalid' };
@@ -102,7 +102,7 @@ export async function registerStudent(tgId, name) {
     rosterChecks: {}, ambiguous: false, lookupPending: true,
   } });
   // Never hold a Telegram update/Mini App request open for university I/O.
-  // Scheduled coverage matching processes this durable request and reports back.
+  // Immediate or scheduled coverage matching processes the durable request.
   return { state: 'queued', found: { courses: sameName ? user?.profile?.courses ?? [] : [], incomplete: true } };
 }
 
@@ -146,8 +146,22 @@ export async function findStudentCourses(query) {
 // New coverage is checked once per roster for all matching subscribers. This
 // also retries inaccessible lists and empty registrations daily. Never unpauses
 // someone and never removes established courses on a reduced participant view.
-export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(), budgetMs = 45000 } = {}) {
-  const users = await db.select().from(subscriptions).all();
+export async function refreshRegistration(tgId) {
+  const user = await subscriber(tgId);
+  if (!user?.active || !user.profile?.lookupPending) return;
+  const now = Date.now(), until = now + 120000, key = `student_lookup:${tgId}`;
+  const claim = await db.run(sql`INSERT INTO leases (key, until) VALUES (${key}, ${until}) ON CONFLICT(key) DO UPDATE SET until = excluded.until WHERE leases.until < ${now}`);
+  if (!claim.rowsAffected) return;
+  try {
+    const courses = (await getSetting('courses')) ?? [];
+    return await refreshStudentCoverage(courses.map(course => ({ course })), { tgId });
+  } finally {
+    await db.run(sql`UPDATE leases SET until = 0 WHERE key = ${key} AND until = ${until}`);
+  }
+}
+
+export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(), budgetMs = 45000, tgId } = {}) {
+  const users = (await db.select().from(subscriptions).all()).filter(user => tgId === undefined || user.tgId === tgId);
   const accounts = readRoster ? [] : (await enabledAccounts()).filter(a => a.mode === 'session');
   const coverageEpoch = Number(await getSetting('coverageRefreshAt')) || 0;
   let added = 0, checked = 0, failed = 0, incomplete = false;
