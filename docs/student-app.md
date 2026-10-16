@@ -65,6 +65,14 @@ Notes that matter:
   courses. The per-course `scan` uses the snapshot's own `updated_at` (unknown for
   baselines written before that column existed). The UI says "stored information" rather
   than showing an old scan as if it had just run.
+- **Two clocks, kept apart.** `coverage.check` follows the *newest* per-course reading,
+  so the header badge cannot contradict the per-course times, while
+  `coverage.recorded` reports the last scan that finished and stored its summary — its
+  own time, failures and lost coverage — with `recorded.olderThanReads` marking the two
+  apart. This is the real shape of the data while the number of connected accounts is
+  still growing: on 2026-10-16 a scan read courses at 13:35 but the summary on record was
+  from 11:10, and the app must not call a 3-hour-old summary "fresh" *or* hide the fact
+  that reads are newer.
 - **Reuse, not duplication.** Registration (`registerStudent`), exact participant
   matching, coverage refresh, notification seeding and the pause/resume/delete controls
   all live in `lib/subscriptions.js` and are the same code the chat commands call — the
@@ -97,8 +105,11 @@ deletion), راهنما (steps, privacy, cooperation, contact).
 ```
 node .freebuff/ui-preview/server.mjs
 # then open http://127.0.0.1:<printed port>/.freebuff/ui-preview/index.html
-#   ?state=registered (default) | unregistered | stale | error | empty | registering
+#   ?state=registered (default) | unregistered | stale | split | error | empty | registering
 ```
+
+`?state=split` is the two-clocks case above: a completed scan 12 hours old next to
+course reads 11 minutes old.
 
 ## Tests
 
@@ -126,3 +137,8 @@ node .freebuff/ui-preview/server.mjs
   items are not sorted by deadline.
 - A course whose baseline predates `snapshots.updated_at` shows no per-course check time;
   the header still shows the last scan.
+- The 30-minute schedule is driven from outside Telegram, and the Cloudflare Worker sends
+  its **own bundled copy** of `tgcloud/` with each scheduled call
+  ([docs/cloudflare-setup.md](cloudflare-setup.md)). Redeploy that Worker after changing
+  checker or notification code, otherwise scheduled runs keep the previous logic while
+  the Mini App already serves the new one.
