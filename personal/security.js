@@ -28,6 +28,10 @@ export async function authenticate(initData, botToken, now = Date.now()) {
   if (!Number.isSafeInteger(user?.id) || user.id <= 0 || user.is_bot || (kind && !['sender','private'].includes(kind))) throw new Error('UNAUTHORIZED');
   return user.id;
 }
+export function validateVaultKey(value) {
+  let raw; try { raw = bytes(value); } catch { throw new Error('SERVER_CONFIG'); }
+  if (raw.length !== 32) throw new Error('SERVER_CONFIG');
+}
 async function key(value) {
   let raw; try { raw = bytes(value); } catch { throw new Error('SERVER_CONFIG'); }
   if (raw.length !== 32) throw new Error('SERVER_CONFIG');

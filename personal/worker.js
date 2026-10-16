@@ -1,4 +1,4 @@
-import { authenticate, seal, unseal } from './security.js';
+import { authenticate, seal, unseal, validateVaultKey } from './security.js';
 import { credentialInput, universityLogin, dashboard, VC } from './login.js';
 import { connector } from '../tgcloud/lib/moodle.js';
 import { signature, notification } from '../tgcloud/lib/content.js';
@@ -7,7 +7,7 @@ const SAFE_CODES = new Set(['INVALID_INPUT','UNAUTHORIZED','LOGIN_FAILED','LOGIN
 const codeOf = e => SAFE_CODES.has(e?.message) ? e.message : 'REQUEST_FAILED';
 const reply = (value, status=200) => Response.json(value, {status,headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
 const authExpired = e => ['LOGIN_REQUIRED','UNIVERSITY_LOGIN_REQUIRED','UNIVERSITY_HTTP_401','UNIVERSITY_HTTP_403'].includes(e?.message);
-function configured(env) { if(!env.PERSONAL_DB || !env.BOT_TOKEN || !env.VAULT_KEY) throw new Error('SERVER_CONFIG'); }
+function configured(env) { if(!env.PERSONAL_DB || !env.BOT_TOKEN || !env.VAULT_KEY) throw new Error('SERVER_CONFIG'); validateVaultKey(env.VAULT_KEY); }
 async function rowFor(env,id) { return env.PERSONAL_DB.prepare('SELECT * FROM personal_connections WHERE tg_id = ?').bind(id).first(); }
 async function claim(env,id) {
   const now=Date.now(), until=now+120000, token=crypto.randomUUID();

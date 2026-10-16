@@ -148,3 +148,11 @@ test('failed new login preserves existing encrypted connection and never returns
   assert.equal(response.status,400);assert.equal(await response.text(),'{"error":"REQUEST_FAILED"}');
   assert.equal((await e.PERSONAL_DB.prepare('SELECT sealed FROM personal_connections WHERE tg_id=?').bind(123).first()).sealed,before);e.PERSONAL_DB.db.close();
 });
+
+test('invalid vault configuration is rejected before sending university credentials', async () => {
+  const e = env(); e.VAULT_KEY = 'not-a-32-byte-key'; let logins = 0;
+  const response = await handleRequest(request('connect',{username:'student',password:'private'}), e, {login:async()=>{logins++;return logged();}});
+  assert.equal((await response.json()).error, 'SERVER_CONFIG');
+  assert.equal(logins, 0);
+  e.PERSONAL_DB.db.close();
+});
