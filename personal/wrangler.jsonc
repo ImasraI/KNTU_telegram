@@ -5,6 +5,7 @@
   "workers_dev": true,
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
   "triggers": { "crons": ["9,39 * * * *"] },
-  "d1_databases": [{ "binding": "PERSONAL_DB", "database_name": "kntu-personal-vc", "database_id": "REPLACE_WITH_CREATED_DATABASE_ID" }],
+  "d1_databases": [{ "binding": "PERSONAL_DB", "database_name": "kntu-personal-vc", "database_id": "7ccb9007-d398-45e8-8af1-435556e28b46" }],
   "observability": { "enabled": false }
 }
+

@@ -11,7 +11,7 @@ export const MINI_APP_URL = 'https://app8298297292.tgcloud.ai/';
 export const SETUP_APP_URL = 'https://app8298297292.tgcloud.ai/setup/';
 // Deploy personal/wrangler.jsonc first; set its HTTPS root URL here.
 // Empty means disabled. Never place credentials in this URL.
-export const PERSONAL_APP_URL = '';
+export const PERSONAL_APP_URL = 'https://kntu-personal-vc.arsamalaei90.workers.dev/';
 // The only university origin this bot talks to. Requests to any other origin are
 // refused before they are made (see lib/moodle.js).
 export const ORIGIN = BASE;
