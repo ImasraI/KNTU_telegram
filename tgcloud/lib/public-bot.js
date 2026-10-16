@@ -10,7 +10,7 @@ import { canConnect } from './authorize.js';
 const BUTTONS = { '📚 درس‌ها': '/courses', '📝 تکلیف‌ها': '/assignments', '🗓 امتحان‌ها': '/exams',
   '🔔 اعلان شخصی': '/register', 'درس‌های من': '/mycourses', '🤝 همکاری': '/cooperate', 'راهنما': '/help',
   'تأیید درس‌ها': '/confirm', 'لغو': '/cancel', 'توقف اعلان‌ها': '/stop' };
-const MENU = { keyboard: [['📚 درس‌ها', '📝 تکلیف‌ها', '🗓 امتحان‌ها'], ['🔔 اعلان شخصی', 'درس‌های من'], ['🤝 همکاری', 'راهنما']], resize_keyboard: true };
+const MENU = { keyboard: [['📚 درس‌ها', '📝 تکلیف‌ها', '🗓 امتحان‌ها'], ['🔔 اعلان شخصی', 'درس‌های من'], ['🔐 حساب شخصی VC'], ['🤝 همکاری', 'راهنما']], resize_keyboard: true };
 const PRIVATE = new Set(['/register', '/name', '/select', '/confirm', '/cancel', '/mycourses', '/stop', '/resume', '/forget', '/cooperate', '/privacy']);
 
 export async function handlePublic(message, role) {

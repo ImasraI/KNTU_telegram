@@ -9,6 +9,9 @@ export const BASE = 'https://vc.kntu.ac.ir';
 // under it, so one push publishes both and neither URL can drift from the other.
 export const MINI_APP_URL = 'https://app8298297292.tgcloud.ai/';
 export const SETUP_APP_URL = 'https://app8298297292.tgcloud.ai/setup/';
+// Deploy personal/wrangler.jsonc first; set its HTTPS root URL here.
+// Empty means disabled. Never place credentials in this URL.
+export const PERSONAL_APP_URL = '';
 // The only university origin this bot talks to. Requests to any other origin are
 // refused before they are made (see lib/moodle.js).
 export const ORIGIN = BASE;

@@ -1,6 +1,7 @@
 import { api } from 'sdk';
 import { refreshRosters } from '../lib/roster-cache.js';
-import { OWNER_ID, SETUP_APP_URL } from '../lib/config.js';
+import { OWNER_ID, SETUP_APP_URL, PERSONAL_APP_URL } from '../lib/config.js';
+import { personalCommand } from '../lib/personal-bot.js';
 import { getSetting, putSetting } from '../lib/settings.js';
 import { roleOf, visibleAccounts, approveContributor, revokeContributor } from '../lib/accounts.js';
 import { canConnect } from '../lib/authorize.js';
@@ -28,6 +29,8 @@ export default async function (message) {
   if (!fromId || !message?.text) return;
   const [raw, ...args] = String(message.text).trim().split(/\s+/);
   if (/@\w+$/.test(raw) && !/@KNTU_aidbot$/i.test(raw)) return;
+  const personal = personalCommand(message, PERSONAL_APP_URL);
+  if (personal) return await api.sendMessage(personal);
   const command = raw.replace(/@\w+$/, '').toLowerCase();
   const role = await roleOf(fromId), owner = role === 'owner', privateChat = chat.type === 'private';
   const reply = text => api.sendMessage({ ...sendTarget(messageDestination(message)),

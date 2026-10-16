@@ -4,3 +4,5 @@ node_modules/
 dist/
 *.local.json
 .env*
+personal/.dev.vars*
+personal/.wrangler/
