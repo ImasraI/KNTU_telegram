@@ -6,3 +6,5 @@ dist/
 .env*
 personal/.dev.vars*
 personal/.wrangler/
+
+shared/.wrangler/

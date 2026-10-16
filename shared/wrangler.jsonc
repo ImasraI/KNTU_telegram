@@ -1,0 +1,12 @@
+{
+  "name": "kntu-shared-bot",
+  "compatibility_date": "2026-10-17",
+  "d1_databases": [
+    {
+      "binding": "SHARED_DB",
+      "database_name": "kntu-shared-bot",
+      "database_id": "98da504f-acb7-4814-8530-7570f0d6f13c"
+    }
+  ],
+  "account_id": "e9765fc525e6d27df4b7715ca659ece9"
+}
