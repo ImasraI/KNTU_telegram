@@ -98,10 +98,11 @@ export async function handlePublic(message, role) {
     return true;
   }
   if (command === '/cancel') {
-    await saveSubscriber(tgId, { profile: { ...user?.profile, pending: null, stage: null } });
+    await saveSubscriber(tgId, { profile: { ...user?.profile, pending: null, stage: null, lookupPending: false } });
     await reply('ثبت یا تغییر درس‌ها لغو شد؛ تنظیمات ثبت‌شدهٔ قبلی حفظ شد.', MENU); return true;
   }
   if (command === '/mycourses') {
+    if (user?.profile?.lookupPending) await reply('⏳ بررسی نام شما در صف است؛ نتیجه پس از بررسی زمان‌بندی‌شده، معمولاً تا ۳۰ دقیقه، همین‌جا ارسال می‌شود.');
     const directory = await directorySummary();
     const courses = directory.courses.filter(c => user?.profile?.courses?.includes(String(c.id)));
     await sendBlocks(reply, courses.map(c => `#${c.id} ${c.name}\n${c.line ?? ''}`),
@@ -154,14 +155,18 @@ async function registerByFullName(tgId, name, reply) {
     return true;
   }
   if (Date.now() - (user?.profile?.lookupAt ?? 0) < 60000) { await reply('برای جست‌وجوی بعدی یک دقیقه صبر کنید.'); return true; }
-  await reply('در حال جست‌وجوی نام شما در درس‌های تحت پوشش…');
   const result = await registerStudent(tgId, clean);
+  if (result.state === 'queued') {
+    await reply('✅ نام شما ثبت شد و بررسی درس‌ها در صف قرار گرفت. نتیجه پس از بررسی زمان‌بندی‌شده، معمولاً تا ۳۰ دقیقه، همین‌جا ارسال می‌شود. لازم نیست منتظر بمانید یا نام را دوباره بفرستید.\n/mycourses برای وضعیت؛ /stop برای توقف\n' + COURSE_SUPPORT, MENU);
+    return true;
+  }
+  if (result.state === 'cooldown') { await reply('درخواست شما قبلاً ثبت شده است؛ برای وضعیت /mycourses را بزنید یا یک دقیقه بعد دوباره تلاش کنید.'); return true; }
   if (result.state === 'busy') {
     await reply('جست‌وجو اکنون ممکن نیست یا جست‌وجوی دیگری در حال اجراست. یک دقیقه بعد دوباره نام کامل را بفرستید.\n' + COURSE_SUPPORT);
     return true;
   }
   if (result.state === 'name-invalid') { await reply(FULL_NAME_PROMPT + '\n' + FULL_NAME_HINT); return true; }
-  if (result.state !== 'registered') return true; // `/forget` during the lookup owns the outcome.
+  if (result.state !== 'registered') { await reply('ثبت‌نام کامل نشد؛ دوباره /register را بزنید.\n' + COURSE_SUPPORT); return true; }
   const found = result.found;
   if (!found.courses.length) {
     await reply((found.ambiguous ? 'چند نفر هم‌نام پیدا شدند و برای جلوگیری از اشتباه، درسی به حساب شما متصل نشد.'

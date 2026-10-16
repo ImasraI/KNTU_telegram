@@ -127,6 +127,7 @@ export function studentState(row) {
   const courses = Array.isArray(profile.courses) ? profile.courses.map(String) : [];
   return {
     registered: !!profile.registered,
+    registrationPending: !!profile.lookupPending,
     notifications: row?.active ? 'on' : profile.paused ? 'paused' : 'off',
     name: profile.name ?? null,
     courses,

@@ -33,7 +33,7 @@ const db = {
 const course = { id: 3, fullname: 'ریاضی [4051]' };
 const item = { id: 9, name: 'تکلیف', kind: 'assign', files: [], dates: 'جمعه', description: '' };
 snapshotRows.set('https://vc.kntu.ac.ir#3', { key: 'https://vc.kntu.ac.ir#3', value: [item] });
-let failPrivate = false;
+let failPrivate = false, universityRequests = 0;
 const api = { async sendMessage(input) {
   if (failPrivate && input.chat_id === 123) throw { code: 500 };
   messages.push(structuredClone(input)); return { message_id: messages.length };
@@ -42,6 +42,7 @@ const context = createContext({ console, Date, Map, Set, Number, String, JSON, M
 const modules = new Map();
 const overrides = new Map([
   ['sdk', { db, api, fetch: async (url, options) => {
+    universityRequests++;
     assert.ok(url.includes('/user/index.php?id=3'));
     assert.equal(options.headers.Cookie, 'MoodleSession=TEST');
     return { ok: true, text: async () => '<table id="participants"><tr><th class="c1"><a href="/user/view.php?id=42&amp;course=3">Student Name</a></th><td class="c2">شاگرد</td></tr></table>' };
@@ -92,7 +93,18 @@ assert.ok(messages.at(-1).text.includes(policy.FULL_NAME_PROMPT));
 assert.ok(messages.at(-1).text.includes('نام کامل در VC'));
 assert.ok(!messages.some(m => /نام کاربری ورود به VC را بفرستید/.test(m.text)));
 // /register <full name> registers directly, with no selection or confirmation step.
+const beforeRegister = universityRequests;
 await send('/register Student Name');
+assert.equal(universityRequests, beforeRegister, 'registration must not wait on university HTTP');
+assert.equal(records.get(123).profile.lookupPending, true);
+assert.deepEqual(records.get(123).profile.courses, []);
+assert.ok(messages.at(-1).text.includes('در صف'));
+failPrivate = true;
+await sub.refreshStudentCoverage([{ course, readers: ['acc_a'] }]);
+assert.equal(records.get(123).profile.lookupPending, true, 'failed result delivery stays queued');
+failPrivate = false;
+await sub.refreshStudentCoverage([{ course, readers: ['acc_a'] }]);
+assert.equal(records.get(123).profile.lookupPending, false);
 assert.deepEqual(records.get(123).profile.courses, ['3']);
 assert.equal(records.get(123).profile.pending, null);
 assert.equal(records.get(123).profile.participantId, '42');
@@ -146,10 +158,24 @@ assert.deepEqual(records.get(789).profile.courses, []); // Known Moodle id preve
 await sub.saveSubscriber(321, { active: false, profile: { stage: 'username', username: 'legacy_login' }, seen: {} });
 const legacySend = text => handlePublic({ chat: { id: 321, type: 'private' }, from: { id: 321 }, text }, 'none');
 assert.equal(await legacySend('Student Name'), true);
+assert.equal(records.get(321).profile.lookupPending, true);
+await sub.refreshStudentCoverage(plan);
 assert.deepEqual(records.get(321).profile.courses, ['3']);
 assert.equal(records.get(321).profile.participantId, '42');
 assert.equal(records.get(321).profile.username, null); // the old login name is dropped, not kept
 assert.equal(records.get(321).active, true);
+// Homonyms across distinct courses must not be merged into one student's profile.
+await sub.registerStudent(900, 'Shared Name');
+await sub.refreshStudentCoverage([{ course, readers: [] }, { course: {id: 4, fullname: 'Other'}, readers: [] }], {
+  readRoster: async c => [{id: String(c.id), name: 'Shared Name'}],
+});
+assert.equal(records.get(900).profile.ambiguous, true);
+assert.deepEqual(records.get(900).profile.courses, []);
+await sub.registerStudent(901, 'Stopped Name');
+await sub.stopStudent(901);
+const beforeStopped = messages.filter(m => m.chat_id === 901).length;
+await sub.refreshStudentCoverage(plan, {readRoster: async () => []});
+assert.equal(messages.filter(m => m.chat_id === 901).length, beforeStopped);
 await send('/cooperate');
 assert.ok(messages.every(m => m.text.length <= 4096));
 assert.ok(messages.some(m => m.text.includes('F12')));

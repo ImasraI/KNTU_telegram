@@ -5,6 +5,7 @@ import { enabledAccounts } from './accounts.js';
 import { getSetting } from './settings.js';
 import { connector } from './moodle.js';
 import { courseKey } from './plan.js';
+import { courseTitle } from './classes.js';
 import { signature, notification } from './content.js';
 import { personalItems, itemReceipt, unseenItems, consented, identityText, validFullName } from './student-policy.js';
 
@@ -70,7 +71,7 @@ export async function confirmSubscription(tgId) {
 export async function stopStudent(tgId) {
   const user = await subscriber(tgId);
   if (!user) return { state: 'not-registered' };
-  await saveSubscriber(tgId, { active: false, profile: { ...user.profile, paused: true, stage: null, pending: null } });
+  await saveSubscriber(tgId, { active: false, profile: { ...user.profile, paused: true, stage: null, pending: null, lookupPending: false } });
   return { state: 'stopped' };
 }
 
@@ -85,24 +86,24 @@ export async function resumeStudent(tgId) {
   return { state: (await confirmSubscription(tgId)) ? 'resumed' : 'failed' };
 }
 
-// The whole registration step, shared by /register in the chat and the Mini App.
-// The displayed VC full name is the only input: a plausible name is matched
-// exactly against Participants and every match is registered automatically, with
-// no selection or confirmation screen. Returns a state instead of a reply so a
-// caller can phrase it for its own surface.
+// Queue registration from the chat or Mini App without university I/O.
+// The scheduled coverage scan resolves the displayed name and reports privately.
 export async function registerStudent(tgId, name) {
   const clean = String(name ?? '').trim();
   if (!validFullName(clean)) return { state: 'name-invalid' };
   const user = await subscriber(tgId);
   if (Date.now() - (user?.profile?.lookupAt ?? 0) < 60000) return { state: 'cooldown' };
-  await saveSubscriber(tgId, { profile: { ...user?.profile, stage: null, lookupAt: Date.now(), pending: null, username: null } });
-  let found;
-  try { found = await findStudentCourses(clean); }
-  catch { return { state: 'busy' }; }
-  // registerDetected refuses to recreate a row deleted during the lookup, so a
-  // /forget or an app deletion mid-search wins over the in-flight result.
-  const registered = await registerDetected(tgId, found, clean);
-  return { state: registered ? 'registered' : 'gone', found };
+  const sameName = identityText(user?.profile?.name) === identityText(clean);
+  await saveSubscriber(tgId, { active: !user?.profile?.paused, seen: sameName ? user?.seen ?? {} : {}, profile: {
+    ...user?.profile, stage: null, lookupAt: Date.now(), pending: null, username: null,
+    name: clean, registered: true, confirmed: true, confirmedAt: Date.now(),
+    participantId: sameName ? user?.profile?.participantId ?? null : null,
+    courses: sameName ? user?.profile?.courses ?? [] : [],
+    rosterChecks: {}, ambiguous: false, lookupPending: true,
+  } });
+  // Never hold a Telegram update/Mini App request open for university I/O.
+  // Scheduled coverage matching processes this durable request and reports back.
+  return { state: 'queued', found: { courses: sameName ? user?.profile?.courses ?? [] : [], incomplete: true } };
 }
 
 // Search only exact matches, never return rosters. Approval to contribute a
@@ -149,9 +150,10 @@ export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(
   const users = await db.select().from(subscriptions).all();
   const accounts = readRoster ? [] : (await enabledAccounts()).filter(a => a.mode === 'session');
   const coverageEpoch = Number(await getSetting('coverageRefreshAt')) || 0;
-  let added = 0, checked = 0, failed = 0;
+  let added = 0, checked = 0, failed = 0, incomplete = false;
+  const pendingMatches = new Map();
   for (const entry of plan) {
-    if (Date.now() - now > budgetMs) break;
+    if (Date.now() - now > budgetMs) { incomplete = true; break; }
     const id = String(entry.course.id);
     const candidates = users.filter(u => (u.profile?.registered || u.profile?.confirmed) && u.profile?.name && !u.profile?.ambiguous
       && !u.profile.courses?.includes(id)
@@ -175,8 +177,19 @@ export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(
       const found = people.filter(p => live.profile.participantId ? String(p.id) === String(live.profile.participantId)
         : identityText(p.name) === identityText(live.profile.name));
       const identities = [...new Set(found.map(p => String(p.id)))];
+      // New identities must be checked across every covered roster before choosing
+      // a Moodle id: the same displayed name may belong to different people.
+      if (live.profile.lookupPending && !live.profile.participantId) {
+        const pending = pendingMatches.get(live.tgId) ?? { ids: new Set(), courses: [], checks: {} };
+        for (const identity of identities) pending.ids.add(identity);
+        if (identities.length) pending.courses.push(entry.course);
+        pending.checks[id] = now;
+        pendingMatches.set(live.tgId, pending);
+        continue;
+      }
       const profile = { ...live.profile, rosterChecks: { ...live.profile.rosterChecks, [id]: now } };
       const patch = { profile };
+      if (identities.length > 1 && !profile.participantId) profile.ambiguous = true;
       if (identities.length === 1 && !profile.courses?.includes(id)) {
         profile.courses = [...(profile.courses ?? []), id];
         profile.participantId = identities[0];
@@ -191,7 +204,38 @@ export async function refreshStudentCoverage(plan, { readRoster, now = Date.now(
       await saveSubscriber(candidate.tgId, patch);
     }
   }
-  return { added, checked, failed };
+  if (!failed && !incomplete) for (const [tgId, pending] of pendingMatches) {
+    const live = await subscriber(tgId);
+    const initial = users.find(user => user.tgId === tgId);
+    if (!live?.profile?.lookupPending || live.profile.lookupAt !== initial?.profile?.lookupAt) continue;
+    const ambiguous = pending.ids.size > 1;
+    const courses = ambiguous ? [] : pending.courses;
+    const seen = { ...live.seen };
+    for (const course of courses) for (const item of personalItems(await savedItems(course))) seen[itemReceipt(course.id, item)] = signature(item);
+    await saveSubscriber(tgId, { seen, profile: { ...live.profile, ambiguous,
+      participantId: pending.ids.size === 1 ? [...pending.ids][0] : null,
+      courses: courses.map(course => String(course.id)), rosterChecks: pending.checks } });
+    added += courses.length;
+  }
+  let reported = 0;
+  for (const initial of users) {
+    if (reported >= 20) break;
+    const live = await subscriber(initial.tgId);
+    if (!live?.active || !live.profile?.lookupPending || live.profile.name !== initial.profile.name) continue;
+    const found = plan.filter(entry => live.profile.courses?.includes(String(entry.course.id)));
+    const names = found.map(entry => '• ' + courseTitle(entry.course.fullname));
+    try {
+      await api.sendMessage({ chat_id: live.tgId, text: [
+        live.profile.ambiguous ? 'چند نفر با نام شما پیدا شدند؛ برای بررسی به @Arsam_alaei پیام بدهید.' : found.length ? `✅ ${found.length} درس برای شما شناسایی شد؛ اعلان شخصی فعال است.` : 'بررسی ثبت‌نام انجام شد؛ فعلاً درسی برای شما شناسایی نشد.',
+        ...names.slice(0, 30), failed || incomplete || !plan.length ? 'بعضی فهرست‌های دانشگاه قابل خواندن نبودند؛ ممکن است نتیجه ناقص باشد.' : '',
+        '/mycourses برای دیدن درس‌ها؛ /stop برای توقف اعلان‌ها', COURSE_SUPPORT,
+      ].filter(Boolean).join('\n').slice(0, 3900) });
+      const current = await subscriber(live.tgId);
+      if (current?.profile?.lookupAt === live.profile.lookupAt) await saveSubscriber(live.tgId, { profile: { ...current.profile, lookupPending: !!(failed || incomplete || !plan.length) } });
+      reported++;
+    } catch { /* leave the durable result pending for the next scan */ }
+  }
+  return { added, checked, failed, reported };
 }
 
 // Independent of public-send bookkeeping: failed private sends remain unseen and

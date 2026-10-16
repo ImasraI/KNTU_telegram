@@ -142,3 +142,7 @@ course reads 11 minutes old.
   ([docs/cloudflare-setup.md](cloudflare-setup.md)). Redeploy that Worker after changing
   checker or notification code, otherwise scheduled runs keep the previous logic while
   the Mini App already serves the new one.
+
+## Queued registration
+
+Registration saves the displayed VC name immediately without university HTTP in the chat or Mini App request. The existing 30-minute scheduled coverage scan matches participant rosters and sends the result privately. `/mycourses` reports a pending lookup. Failed private result delivery is retried; `/stop` cancels the pending result. Unknown identities are resolved across all covered rosters before any courses are attached, so homonyms are not guessed. University failures can delay completion beyond the normal 30-minute cadence.

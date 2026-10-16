@@ -187,9 +187,14 @@ assert.equal(byId[3].counts.exam, 1);
 await refuses(() => endpoint({ action: 'register', name: 'Ali' }, ctx(111)), /نام و نام خانوادگی/);
 assert.equal(subs.size, 0, 'an implausible name must not create a row');
 
-const registered = await endpoint({ action: 'register', name: 'Student One' }, ctx(111));
-assert.deepEqual(plain(registered.result.courses), [3], 'only the matched course is registered');
-assert.equal(registered.result.ambiguous, false);
+const queued = await endpoint({ action: 'register', name: 'Student One' }, ctx(111));
+assert.equal(queued.result.queued, true);
+assert.equal(queued.me.registrationPending, true);
+assert.deepEqual(plain(queued.result.courses), []);
+const registrationPlan = [3,82,20].map(id => ({course: {id, fullname: 'Course'}, readers: ['acc_a']}));
+await subscriptions.refreshStudentCoverage(registrationPlan);
+const registered = await endpoint({action:'home'}, ctx(111));
+assert.equal(registered.me.registrationPending, false);
 assert.equal(registered.me.registered, true);
 assert.equal(registered.me.notifications, 'on');
 assert.deepEqual(plain(registered.me.courses), ['3']);
@@ -201,7 +206,8 @@ await refuses(() => endpoint({ action: 'register', name: 'Student One' }, ctx(11
 
 /* ------------------------------------------------------ caller isolation */
 const second = await endpoint({ action: 'register', name: 'Other Person' }, ctx(222));
-assert.deepEqual(plain(second.result.courses), [82]);
+assert.equal(second.result.queued, true);
+await subscriptions.refreshStudentCoverage(registrationPlan);
 const home222 = await endpoint({ action: 'home' }, ctx(222));
 const home111 = await endpoint({ action: 'home' }, ctx(111));
 assert.deepEqual(plain(home222.me.courses), ['82']);
@@ -217,12 +223,14 @@ await refuses(() => endpoint({ action: 'stop' }, { initData: {} }), /حساب ت
 await refuses(() => endpoint({ action: 'forget' }, {}), /حساب تلگرام/);
 
 /* --------------------------------- homonyms are never guessed automatically */
-const ambiguous = await endpoint({ action: 'register', name: 'Same Name' }, ctx(333));
-assert.equal(ambiguous.result.ambiguous, true);
-assert.deepEqual(plain(ambiguous.result.courses), []);
+await endpoint({ action: 'register', name: 'Same Name' }, ctx(333));
+await subscriptions.refreshStudentCoverage(registrationPlan);
+const ambiguous = await endpoint({action:'home'}, ctx(333));
+assert.equal(ambiguous.me.ambiguous, true);
 assert.deepEqual(plain(ambiguous.me.courses), []);
 assert.equal(ambiguous.me.registered, true, 'the student stays registered for future coverage');
 
+messages.length = 0;
 /* ------------------------------------------- stop, resume, dedupe, deletion */
 const course3 = { id: 3, fullname: 'ریاضی مهندسی' };
 const stopped = await endpoint({ action: 'stop' }, ctx(111));

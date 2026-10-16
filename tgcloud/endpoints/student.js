@@ -163,6 +163,7 @@ export default async function (input, ctx) {
     return {
       ...await payload(caller, now),
       result: {
+        queued: result.state === 'queued',
         registered: true,
         courses: result.found.courses.map(Number),
         ambiguous: !!result.found.ambiguous,
