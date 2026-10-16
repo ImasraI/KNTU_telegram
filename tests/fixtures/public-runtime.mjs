@@ -85,6 +85,13 @@ assert.ok(!appButton.web_app.url.includes('/setup'));
 assert.ok(messages.some(m => m.text.includes('تکلیف')));
 assert.ok(messages.every(m => !m.text.includes('/approve') && !m.text.includes('/admin')));
 assert.equal(await handlePublic({ chat: { id: -10, type: 'group' }, from: { id: 123 }, text: '/courses' }, 'none'), true);
+// Public command replies must stay in the requesting forum topic.
+for (const command of ['/courses', '/assignments', '/exams', '/help']) {
+  const before = messages.length;
+  await handlePublic({chat:{id:-10,type:'supergroup'},from:{id:123},message_thread_id:77,is_topic_message:true,text:command}, 'none');
+  assert.ok(messages.length > before);
+  assert.ok(messages.slice(before).every(message => message.chat_id === -10 && message.message_thread_id === 77));
+}
 // /register asks only for the displayed VC full name — no login-username stage.
 await send('/register');
 assert.equal(records.get(123).active, false);

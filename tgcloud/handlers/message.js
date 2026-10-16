@@ -5,7 +5,7 @@ import { getSetting, putSetting } from '../lib/settings.js';
 import { roleOf, visibleAccounts, approveContributor, revokeContributor } from '../lib/accounts.js';
 import { canConnect } from '../lib/authorize.js';
 import { handlePublic } from '../lib/public-bot.js';
-import { parseThreadId, sendTarget, describeDestination } from '../lib/destination.js';
+import { messageDestination, sendTarget, describeDestination } from '../lib/destination.js';
 import { scan, publishDigests, resolveDestination, directorySummary, detectClassInfo } from '../lib/monitor.js';
 import { parseClassCommand, courseTitle, deriveLabel } from '../lib/classes.js';
 import { setBinding, deleteBinding } from '../lib/directory.js';
@@ -30,16 +30,17 @@ export default async function (message) {
   if (/@\w+$/.test(raw) && !/@KNTU_aidbot$/i.test(raw)) return;
   const command = raw.replace(/@\w+$/, '').toLowerCase();
   const role = await roleOf(fromId), owner = role === 'owner', privateChat = chat.type === 'private';
-  const reply = text => api.sendMessage({ chat_id: chat.id,
+  const reply = text => api.sendMessage({ ...sendTarget(messageDestination(message)),
     text: courseTitle(text).replace(/\b\d{1,4}-\d{7}-\d{1,4}\b/g, code => deriveLabel(code) ?? ''),
     link_preview_options: { is_disabled: true } });
   try {
     if (await handlePublic(message, role)) return;
     if (command === '/bind') {
       if (!owner || !['group', 'supergroup'].includes(chat.type)) return;
-      const threadId = parseThreadId(message.message_thread_id ?? message.reply_to_message?.message_thread_id);
+      const { threadId } = messageDestination(message);
+      if (message.is_topic_message && !threadId) return await reply('شناسهٔ موضوع دریافت نشد؛ مقصد تغییر نکرد. /bind را به‌صورت پیام تازه در موضوع مقصد بفرستید.');
       const destination = { chatId: chat.id, threadId, boundBy: fromId, boundAt: new Date().toISOString(), source: 'bind' };
-      await api.sendMessage({ ...sendTarget(destination), text: '✅ این گروه یا موضوع برای اطلاع‌رسانی ثبت شد.' });
+      await api.sendMessage({ ...sendTarget(destination), text: '✅ مقصد اطلاع‌رسانی ثبت شد: ' + describeDestination(destination) });
       await putSetting('destination', destination);
       if (!threadId) await putSetting('groupId', chat.id);
       return;

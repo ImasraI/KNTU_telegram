@@ -1,4 +1,5 @@
 import { api } from 'sdk';
+import { messageDestination, sendTarget } from './destination.js';
 import { MINI_APP_URL } from './config.js';
 import { PUBLIC_HELP, PRIVACY, selectedIds, consented, validFullName, isExam, FULL_NAME_PROMPT, FULL_NAME_HINT } from './student-policy.js';
 import { subscriber, saveSubscriber, forgetSubscriber, confirmSubscription, savedItems, registerDetected, registerStudent, refreshRegistration, stopStudent, resumeStudent, COURSE_SUPPORT } from './subscriptions.js';
@@ -19,7 +20,7 @@ export async function handlePublic(message, role) {
   const [raw, ...args] = text.split(/\s+/);
   let command = BUTTONS[text] ?? (raw ?? '').replace(/@\w+$/, '').toLowerCase();
   if (command === '/assignment') command = '/assignments';
-  const reply = async (value, markup) => api.sendMessage({ chat_id: message.chat.id, text: value,
+  const reply = async (value, markup) => api.sendMessage({ ...sendTarget(messageDestination(message)), text: value,
     link_preview_options: { is_disabled: true }, ...(markup ? { reply_markup: markup } : {}) });
   if (PRIVATE.has(command) && !privateChat) {
     await reply('برای تنظیم اعلان شخصی و حفظ حریم خصوصی، این دستور را در گفت‌وگوی خصوصی ربات اجرا کنید.');

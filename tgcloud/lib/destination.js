@@ -39,3 +39,9 @@ export function describeDestination(destination) {
 export function sameTarget(a, b) {
   return !!a && !!b && a.chatId === b.chatId && (a.threadId ?? null) === (b.threadId ?? null);
 }
+
+// Replies follow the incoming message, independently of the announcement binding.
+export function messageDestination(message) {
+  return { chatId: message.chat.id,
+    threadId: parseThreadId(message.message_thread_id) ?? parseThreadId(message.reply_to_message?.message_thread_id) };
+}
