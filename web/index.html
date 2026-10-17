@@ -5,23 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
 <title>درس‌های من — ربات خواجه نصیر</title>
 <link rel="stylesheet" href="./app.css">
 </head>
 <body>
-<a class="skip" href="#view">پرش به محتوا</a>
+<a class="skip" href="#view">پرش به محتوای اصلی</a>
 
-<header class="topbar">
-  <div class="topbar-text">
-    <span class="topbar-title">درس‌ها و تکلیف‌ها</span>
-    <span class="freshness" id="freshness"><span class="dot"></span><span class="freshness-text">در حال بارگذاری…</span></span>
+<header class="appbar">
+  <span class="brand" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path d="M12 3 2.5 8 12 13l9.5-5Zm-7 7.6V16c0 2.2 3.1 4 7 4s7-1.8 7-4v-5.4L12 14Z"/></svg>
+  </span>
+  <div class="appbar-text">
+    <h1 class="appbar-title">درس‌ها و تکلیف‌ها</h1>
+    <p class="freshness" id="freshness" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="freshness-text">در حال بارگذاری…</span>
+    </p>
   </div>
-  <button class="iconbtn" type="button" data-act="refresh" aria-label="تازه‌سازی اطلاعات">
+  <button class="iconbtn" type="button" data-act="refresh" aria-label="تازه‌سازی اطلاعات" title="تازه‌سازی">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z"/></svg>
   </button>
 </header>
 
-<main class="view" id="view" tabindex="-1">
+<main class="view" id="view" tabindex="-1" aria-label="محتوای مینی‌اپ" aria-busy="true">
   <div class="skeleton-wrap" aria-hidden="true">
     <div class="skeleton skeleton-hero"></div>
     <div class="skeleton skeleton-line"></div>
@@ -30,48 +37,52 @@
   </div>
 </main>
 
-<nav class="tabbar" id="tabbar" aria-label="بخش‌ها">
-  <button type="button" role="tab" data-act="tab" data-tab="home" aria-selected="true">
+<nav class="tabbar" id="tabbar" role="tablist" aria-label="بخش‌های مینی‌اپ">
+  <button type="button" role="tab" id="tab-home" aria-controls="view" aria-selected="true" tabindex="0" data-act="tab" data-tab="home">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1Z"/></svg>
-    <span>خانه</span>
+    <span class="tab-label">خانه</span>
   </button>
-  <button type="button" role="tab" data-act="tab" data-tab="courses" aria-selected="false">
+  <button type="button" role="tab" id="tab-courses" aria-controls="view" aria-selected="false" tabindex="-1" data-act="tab" data-tab="courses">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5Zm2 6h10v2H7Zm0 4h10v2H7Zm0 4h6v2H7Z"/></svg>
-    <span>درس‌ها</span>
+    <span class="tab-label">درس‌ها</span>
   </button>
-  <button type="button" role="tab" data-act="tab" data-act-feed="true" data-feed="assign" aria-selected="false">
+  <button type="button" role="tab" id="tab-feed" aria-controls="view" aria-selected="false" tabindex="-1" data-act="tab" data-act-feed="true" data-feed="assign">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10v3H7Zm-2 4h14v16H5Zm3 4h8v2H8Zm0 4h8v2H8Z"/></svg>
-    <span>تکلیف‌ها</span>
+    <span class="tab-label">تکلیف‌ها</span>
   </button>
-  <button type="button" role="tab" data-act="tab" data-tab="me" aria-selected="false">
+  <button type="button" role="tab" id="tab-me" aria-controls="view" aria-selected="false" tabindex="-1" data-act="tab" data-tab="me">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm0 11c4.4 0 8 2.5 8 5.5V21H4v-1.5C4 16.5 7.6 14 12 14Z"/></svg>
-    <span>من</span>
+    <span class="tab-label">من</span>
   </button>
-  <button type="button" role="tab" data-act="tab" data-tab="help" aria-selected="false">
+  <button type="button" role="tab" id="tab-help" aria-controls="view" aria-selected="false" tabindex="-1" data-act="tab" data-tab="help">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm1 15h-2v2h2Zm-1-11a4 4 0 0 0-4 4h2a2 2 0 1 1 3 1.7c-1.2.7-2 1.6-2 3.3h2c0-1.2.7-1.9 1.7-2.5A4 4 0 0 0 12 6Z"/></svg>
-    <span>راهنما</span>
+    <span class="tab-label">راهنما</span>
   </button>
 </nav>
 
-<div class="sheet" id="sheet" hidden>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
   <div class="sheet-bar">
-    <button class="iconbtn" type="button" data-act="back" aria-label="بازگشت">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6 4 12l6 6V9h10V15Z"/></svg>
+    <button class="iconbtn" type="button" data-act="back" aria-label="بستن جزئیات درس">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6 4 12l6 6V9h10v6Z"/></svg>
     </button>
-    <span class="sheet-title" id="sheet-title"></span>
+    <h2 class="sheet-title" id="sheet-title"></h2>
+    <span class="sheet-spacer" aria-hidden="true"></span>
   </div>
   <div class="sheet-body" id="sheet-body"></div>
 </div>
 
 <div class="overlay" id="overlay" hidden>
-  <div class="overlay-card">
+  <div class="overlay-card" role="status" aria-live="polite">
     <span class="spinner" aria-hidden="true"></span>
     <p id="overlay-text">در حال بارگذاری…</p>
     <p class="muted" id="overlay-note"></p>
   </div>
 </div>
 
-<p class="toast" id="toast" role="status" hidden></p>
+<p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+<p class="sr-only" id="announcer" role="status" aria-live="polite"></p>
+
+<noscript><p class="noscript">برای استفاده از این مینی‌اپ باید جاوااسکریپت در تلگرام فعال باشد.</p></noscript>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script type="module" src="./app.js"></script>

@@ -99,18 +99,41 @@ deletion), راهنما (steps, privacy, cooperation, contact).
 - The field, prompt and hint for the VC display name come from the server payload, so the
   client never restates policy and no login username is ever requested.
 
+## Homework windows and the optional smart chat
+
+- The feed is deadline-aware: «پیش‌رو», «انجام‌نشده», «انجام‌شده», «بدون تاریخ»
+  and «همه». Each row states how long is left in the student's own terms
+  («۲ روز مانده · ۲۷ مهر»), and a checkbox records completion through
+  `setHomeworkDone`, which only accepts an assignment from the caller's own
+  courses. Undated work is reported as «بدون تاریخ», never guessed.
+- «من» carries a switch for the optional smart chat and, while it is on, a
+  memory-delete action. Both call the same `ai:consent:<id>` setting the chat
+  commands use, so the app and the bot cannot disagree. The disclosure text is
+  server-driven, and stopping the chat deletes the caller's short memory — the
+  response reports whether that deletion actually happened.
+- Rebuilding the view never drops keyboard focus: the tab, switch or row button
+  the user was on is re-focused after every render.
+
 ## Reviewing the UI without Telegram
 
-`.freebuff/ui-preview/` holds a mock Telegram client (not deployed, not in `dist/`):
+`npm run preview` serves the built `dist/` with a mock Telegram client and fixture
+data, including the owner console (nothing in it is deployed and it holds no
+secret):
 
 ```
-node .freebuff/ui-preview/server.mjs
-# then open http://127.0.0.1:<printed port>/.freebuff/ui-preview/index.html
-#   ?state=registered (default) | unregistered | stale | split | error | empty | registering
+npm run build && npm run preview
+# student app  → http://127.0.0.1:5199/
+# owner console → http://127.0.0.1:5199/setup/
 ```
 
-`?state=split` is the two-clocks case above: a completed scan 12 hours old next to
-course reads 11 minutes old.
+The mock answers `student`, `accounts`, `directory`, `aiAdmin`, `aiStatus` and
+`check` with one owner and three example connections, so every panel and every
+state can be inspected in a browser. Change the fixtures in
+`scripts/preview-mock.mjs` to reproduce a specific state (stale scan, unregistered
+student, expired session, unowned plan).
+
+The older `.freebuff/ui-preview/` snapshot harness still exists for the public app
+alone; `npm run preview` covers both surfaces.
 
 ## Tests
 

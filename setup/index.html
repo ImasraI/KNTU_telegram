@@ -1,232 +1,273 @@
 <!doctype html>
-<html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>اتصال دانشگاه — ربات خواجه نصیر</title>
-<style>
-body{font:16px system-ui;background:#f3f5f8;color:#16243a;margin:0;padding:28px 18px}
-main{max-width:560px;margin:auto;background:white;padding:26px;border-radius:18px}
-label,input,select,button{display:block;box-sizing:border-box;width:100%;margin:10px 0}
-input,select,button{padding:11px;border:1px solid #b9c4d4;border-radius:8px;font:inherit}
-button{background:#1765ce;color:white;border:0}
-button.ghost{background:#e8eef8;color:#16243a;width:auto;display:inline-block;padding:7px 11px;margin:4px 5px 4px 0;font-size:14px}
-button.danger{background:#fdecec;color:#a01b1b}
-[hidden]{display:none!important}
-h1{font-size:22px;margin:0 0 6px}h2{font-size:17px;margin:26px 0 6px}h3{font-size:15px;margin:0}
-p,li{line-height:1.55}small{color:#52627a;display:block;margin-top:6px}
-.card{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin:10px 0}
-.card b{display:block}.muted{color:#52627a;font-size:14px}
-#result{white-space:pre-wrap;font-size:14px}
-code{background:#f1f4f9;padding:1px 5px;border-radius:5px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-</style>
-<main>
-<h1>فرم خصوصی همکاری دانشگاه</h1>
-<p id="role" class="muted">در حال بررسی دسترسی…</p>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>کنسول مدیریت — ربات خواجه نصیر</title>
+<link rel="stylesheet" href="../app.css">
+<link rel="stylesheet" href="./setup.css">
+</head>
+<body class="console">
 
-<section id="accountsSection">
-  <h2>اتصال‌های دانشگاهی</h2>
-  <div id="accounts"></div>
-</section>
+<a class="skip" href="#main">پرش به محتوای اصلی</a>
 
-<h2 id="formTitle">افزودن اتصال</h2>
-<form id="form">
-  <label>نام دلخواه (اختیاری)<input id="label" type="text" maxlength="60" placeholder="مثلاً حساب اصلی من"></label>
-  <label>مقدار MoodleSession<input id="secret" type="password" autocomplete="off" spellcheck="false" required minlength="10" maxlength="256"></label>
-  <small>فقط مقدار <code>MoodleSession</code> را وارد کنید؛ رمز عبور لازم نیست. مقدار در پایگاه دادهٔ خصوصی ربات روی تلگرام نگهداری و هنگام خواندن سایت برای vc.kntu.ac.ir ارسال می‌شود. مقدار ذخیره‌شده به این صفحه برگردانده نمی‌شود. همکاری اختیاری است و حذف اتصال از این فرم ممکن است.</small>
-  <button id="save" type="submit">آزمایش و ذخیره</button>
-  <button id="cancel" class="ghost" type="button" hidden>لغو تازه‌سازی</button>
-</form>
+<header class="shell-top">
+  <span class="brand" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path d="M12 3 2.5 8 12 13l9.5-5Zm-7 7.6V16c0 2.2 3.1 4 7 4s7-1.8 7-4v-5.4L12 14Z"/></svg>
+  </span>
+  <div class="shell-top-text">
+    <h1>کنسول مدیریت و همکاری</h1>
+    <p class="muted" id="role">در حال بررسی دسترسی…</p>
+  </div>
+  <div class="shell-actions">
+    <span class="badge" id="health" aria-live="polite">—</span>
+    <button class="iconbtn" type="button" data-act="reload" aria-label="بارگذاری دوباره" title="بارگذاری دوباره">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z"/></svg>
+    </button>
+  </div>
+</header>
 
-<section id="classSection" hidden>
-  <h2>کلاس‌ها و استادها</h2>
-  <p class="muted">نام استاد از شرکت‌کنندگان دریافت می‌شود. فقط شماره دو رقمی کلاس نمایش داده می‌شود؛ برای نمایش ساعت به جای آن، زمان کلاس را تنظیم کنید.</p>
-  <div id="classList"></div>
-  <div id="professors" hidden></div>
-  <form id="profForm" hidden>
-    <div class="grid">
-      <input id="profCode" placeholder="کد استاد (4051)" maxlength="20">
-      <input id="profName" placeholder="نام استاد" maxlength="60">
+<p class="status-line" id="status" role="status" aria-live="polite"></p>
+
+<div class="shell" id="shell" aria-busy="true">
+  <nav class="sidenav" aria-label="بخش‌های کنسول">
+    <div role="tablist" aria-orientation="vertical" aria-label="بخش‌های کنسول" class="sidenav-list">
+      <button type="button" role="tab" id="nav-overview" aria-controls="panel-overview" aria-selected="true" tabindex="0" data-act="panel" data-panel="overview">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6v8H4Zm10-9h6v17h-6ZM4 4h6v7H4Z"/></svg>
+        <span>نمای کلی</span>
+      </button>
+      <button type="button" role="tab" id="nav-connections" aria-controls="panel-connections" aria-selected="false" tabindex="-1" data-act="panel" data-panel="connections">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v4h3l1 4H5l1-4h3Zm-4 9h14v9H5Z"/></svg>
+        <span>اتصال‌ها</span>
+        <span class="nav-count" id="nav-connections-count">—</span>
+      </button>
+      <button type="button" role="tab" id="nav-directory" aria-controls="panel-directory" aria-selected="false" tabindex="-1" data-act="panel" data-panel="directory" data-owner-only="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5Zm2 6h10v2H7Zm0 4h10v2H7Z"/></svg>
+        <span>درس‌ها و کلاس‌ها</span>
+      </button>
+      <button type="button" role="tab" id="nav-ai" aria-controls="panel-ai" aria-selected="false" tabindex="-1" data-act="panel" data-panel="ai" data-owner-only="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.4-3 5.6V18H8v-3.4C6.2 13.4 5 11.4 5 9a7 7 0 0 1 7-7Zm-3 18h6v2H9Z"/></svg>
+        <span>گفت‌وگوی هوشمند</span>
+      </button>
     </div>
-    <button type="submit">ذخیرهٔ استاد</button>
-  </form>
-</section>
+    <div class="sidenav-foot">
+      <p class="muted">فرم خصوصی همکاری دانشگاه؛ مقدار اتصال فقط در همین صفحه وارد می‌شود.</p>
+      <a class="link-quiet" href="https://t.me/KNTU_aidbot" target="_blank" rel="noopener noreferrer">باز کردن ربات</a>
+    </div>
+  </nav>
 
-<h2>مقصد گروهی</h2>
-<p id="destination" class="muted"></p>
-<small>فقط مدیر می‌تواند با <code>/bind</code> در گروه یا موضوع مقصد، آن را ثبت کند.</small>
+  <main class="panels" id="main" tabindex="-1">
 
-<h2>وضعیت</h2>
-<div id="status" class="muted"></div>
-<button id="check" type="button" hidden>بررسی فوری درس‌ها</button>
+    <!-- ------------------------------------------------------------ overview -->
+    <section class="panel" id="panel-overview" role="tabpanel" aria-labelledby="nav-overview" tabindex="0">
+      <div class="panel-head">
+        <div>
+          <h2>نمای کلی</h2>
+          <p class="muted">وضعیت اتصال دانشگاه، پوشش درس‌ها و ارسال اعلان‌ها.</p>
+        </div>
+        <button class="btn small" type="button" data-act="check" id="check-button" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4Z"/></svg>
+          بررسی فوری درس‌ها
+        </button>
+      </div>
 
-<h2>چه اطلاعاتی خوانده می‌شود؟</h2>
-<p class="muted" id="limits"></p>
-<p id="result" role="status"></p>
-</main>
+      <div class="kpis" id="kpis"></div>
+
+      <div class="panel-grid">
+        <section class="card" aria-labelledby="health-title">
+          <div class="section-head"><h2 id="health-title">سلامت اتصال‌ها</h2><span class="muted" id="health-note"></span></div>
+          <div id="health-list"></div>
+        </section>
+
+        <section class="card" aria-labelledby="destination-title">
+          <div class="section-head"><h2 id="destination-title">مقصد اعلان گروهی</h2><span class="badge" id="destination-badge">—</span></div>
+          <p class="muted" id="destination">—</p>
+          <p class="muted" style="margin-top:8px">فقط مدیر می‌تواند با <code>/bind</code> در گروه یا موضوع مقصد، آن را ثبت کند.</p>
+          <div id="digests"></div>
+        </section>
+      </div>
+
+      <section class="card" aria-labelledby="limits-title" style="margin-top:12px">
+        <h2 id="limits-title">چه اطلاعاتی خوانده می‌شود؟</h2>
+        <p class="muted" id="limits" style="margin-top:6px">فهرست کامل دانشجویان ذخیره یا منتشر نمی‌شود. نمره‌ها، پاسخ‌های تحویلی و پیام‌های خصوصی خوانده نمی‌شود.</p>
+      </section>
+    </section>
+
+    <!-- --------------------------------------------------------- connections -->
+    <section class="panel" id="panel-connections" role="tabpanel" aria-labelledby="nav-connections" tabindex="0" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>اتصال‌های دانشگاهی</h2>
+          <p class="muted">هر اتصال یک حساب دانشگاهی است که درس‌های آن خوانده می‌شود. مقدار اتصال هرگز به این صفحه برنمی‌گردد.</p>
+        </div>
+      </div>
+
+      <div id="accounts-empty" hidden></div>
+      <div id="accounts" class="stack"></div>
+
+      <section class="card form-card" aria-labelledby="form-title">
+        <h2 id="form-title">افزودن اتصال</h2>
+        <p class="muted" style="margin-top:4px">فقط مقدار <code>MoodleSession</code> را وارد کنید؛ رمز عبور لازم نیست. راهنمای کامل کوکی در <code>/cooperate</code> آمده است.</p>
+        <div class="notice info" id="renew-note" hidden>
+          <b>تازه‌سازی اتصال</b>
+          مقدار تازه را وارد کنید تا همان اتصال به‌روز شود؛ اتصال تازه ساخته نمی‌شود.
+        </div>
+        <form id="form" novalidate>
+          <fieldset class="fields">
+            <legend class="sr-only">مشخصات اتصال دانشگاهی</legend>
+            <div class="field">
+              <label for="label">نام دلخواه (اختیاری)</label>
+              <input class="input" id="label" type="text" maxlength="60" autocomplete="off" placeholder="مثلاً حساب اصلی من"
+                aria-describedby="label-hint">
+              <small class="muted" id="label-hint">فقط برای تشخیص اتصال‌ها در همین صفحه.</small>
+            </div>
+            <div class="field">
+              <label for="secret">مقدار MoodleSession</label>
+              <input class="input" id="secret" type="password" autocomplete="off" spellcheck="false" required
+                minlength="10" maxlength="256" aria-describedby="secret-hint secret-error" aria-invalid="false">
+              <p class="form-error" id="secret-error" role="alert" hidden></p>
+              <small class="muted" id="secret-hint">در پایگاه دادهٔ خصوصی ربات روی تلگرام نگهداری و هنگام خواندن سایت برای vc.kntu.ac.ir ارسال می‌شود. همکاری اختیاری است و حذف اتصال از همین صفحه انجام می‌شود.</small>
+            </div>
+          </fieldset>
+          <div class="btn-row">
+            <button class="btn" id="save" type="submit">آزمایش و ذخیره</button>
+            <button class="btn ghost" id="cancel" type="button" hidden>لغو تازه‌سازی</button>
+          </div>
+        </form>
+      </section>
+
+      <details class="card tips">
+        <summary>اتصال چه چیزی را ممکن می‌کند؟</summary>
+        <ul>
+          <li>هر حساب فقط درس‌های خودش را می‌خواند و پوشش درس‌ها را گسترش می‌دهد.</li>
+          <li>اگر نشست منقضی شود، اعلان گروهی ارسال نمی‌شود و وضعیت «نشست منقضی» نمایش داده می‌شود.</li>
+          <li>حذف اتصال، سابقهٔ عمومی درس‌ها را پاک نمی‌کند.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- ----------------------------------------------------------- directory -->
+    <section class="panel" id="panel-directory" role="tabpanel" aria-labelledby="nav-directory" tabindex="0" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>درس‌ها و کلاس‌ها</h2>
+          <p class="muted">نام استاد از شرکت‌کنندگان خوانده می‌شود. فقط شمارهٔ دو رقمی کلاس نمایش داده می‌شود؛ برای نمایش زمان، زمان کلاس را تنظیم کنید.</p>
+        </div>
+        <span class="badge" id="course-count">—</span>
+      </div>
+
+      <div class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 1-4.9 14.3l-3.4 3.4-1.4-1.4 3.4-3.4A8 8 0 0 1 10 2Zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"/></svg>
+        <input class="input" id="course-search" type="search" autocomplete="off" placeholder="جست‌وجوی نام درس یا استاد" aria-label="جست‌وجوی درس" aria-describedby="course-search-count">
+      </div>
+      <p class="muted" id="course-search-count" role="status" aria-live="polite"></p>
+
+      <div id="class-list" class="stack"></div>
+
+      <section class="card" aria-labelledby="prof-title">
+        <div class="section-head"><h2 id="prof-title">استادها</h2><span class="muted" id="prof-count">—</span></div>
+        <p class="muted">نام استاد فقط از فهرست شرکت‌کنندگان (نقش «استاد») خوانده می‌شود. برای تازه‌سازی، در ردیف هر درس «بررسی سایت» را بزنید.</p>
+        <div id="professors" class="chips"></div>
+      </section>
+    </section>
+
+    <!-- ------------------------------------------------------------------ ai -->
+    <section class="panel" id="panel-ai" role="tabpanel" aria-labelledby="nav-ai" tabindex="0" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>گفت‌وگوی هوشمند</h2>
+          <p class="muted">این تنظیم‌ها همان مقادیری هستند که <code>/ai</code> و <code>/persona</code> در چت می‌نویسند. کلید مدل فقط در Secretهای کلادفلر نگهداری می‌شود و در این پروژه نیست.</p>
+        </div>
+        <span class="badge" id="ai-badge">—</span>
+      </div>
+
+      <div id="ai-loading" class="skeleton skeleton-card" aria-hidden="true"></div>
+
+      <div id="ai-body" hidden>
+        <section class="card" aria-labelledby="ai-service-title">
+          <div class="section-head"><h2 id="ai-service-title">وضعیت سرویس</h2>
+            <span class="badge" id="ai-service-badge">نامشخص</span></div>
+          <p class="muted" id="ai-service-text">برای بررسی پاسخ‌دهی سرویس، دکمه زیر را بزنید.</p>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn ghost" type="button" data-act="ai-probe">بررسی سرویس</button>
+            <button class="btn ghost" type="button" data-act="ai-reload">بارگذاری تنظیم‌ها</button>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="ai-config-title">
+          <h2 id="ai-config-title">تنظیم اجرا</h2>
+          <form id="ai-form" novalidate>
+            <button class="switch-field" type="button" role="switch" id="ai-enabled" aria-checked="true" aria-describedby="ai-enabled-hint" style="margin-top:12px">
+              <span class="switch-copy"><b>گفت‌وگو روشن باشد</b><small id="ai-enabled-hint">با خاموش‌کردن، هیچ کاربری نمی‌تواند گفت‌وگو را روشن کند.</small></span>
+              <span class="switch-track" aria-hidden="true"></span>
+            </button>
+            <div class="field" style="margin-top:12px">
+              <label for="ai-provider">ارائه‌دهنده</label>
+              <select class="select" id="ai-provider" aria-describedby="ai-provider-hint">
+                <option value="">پیش‌فرض سرویس</option>
+              </select>
+              <small class="muted" id="ai-provider-hint">Groq یا Gemini؛ کلید هرکدام در Secretهای کلادفلر تنظیم می‌شود.</small>
+            </div>
+            <div class="field">
+              <label for="ai-model">نام مدل</label>
+              <input class="input" id="ai-model" maxlength="120" autocomplete="off" spellcheck="false" dir="ltr"
+                placeholder="مثلاً llama-3.3-70b-versatile" aria-describedby="ai-model-hint" aria-invalid="false">
+              <p class="form-error" id="ai-model-error" role="alert" hidden></p>
+              <small class="muted" id="ai-model-hint">خالی بگذارید تا مدل پیش‌فرض سرویس استفاده شود.</small>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="ai-daily-user">سقف روزانهٔ هر کاربر</label>
+                <input class="input" id="ai-daily-user" type="number" inputmode="numeric" min="1" max="100" step="1">
+              </div>
+              <div class="field">
+                <label for="ai-daily-global">سقف روزانهٔ کل</label>
+                <input class="input" id="ai-daily-global" type="number" inputmode="numeric" min="1" max="5000" step="1">
+              </div>
+            </div>
+            <button class="btn" type="submit" id="ai-save">ذخیرهٔ تنظیم‌ها</button>
+          </form>
+        </section>
+
+        <section class="card" aria-labelledby="ai-persona-title">
+          <div class="section-head"><h2 id="ai-persona-title">شخصیت</h2><span class="muted">۰ تا ۱۰</span></div>
+          <p class="muted">هر ویژگی با ذخیره‌شدن، از همان لحظه در پاسخ‌ها اثر می‌گذارد.</p>
+          <div id="ai-traits" class="traits"></div>
+        </section>
+
+        <section class="card" aria-labelledby="ai-media-title">
+          <div class="section-head"><h2 id="ai-media-title">رسانه‌های مجاز</h2><span class="badge" id="ai-media-badge">—</span></div>
+          <p class="muted">گیف‌ها و موسیقی‌هایی که گفت‌وگو اجازهٔ فرستادن آن‌ها را دارد. افزودن از چت با پاسخ <code>/media add</code> به یک گیف یا فایل صوتی انجام می‌شود.</p>
+          <button class="btn ghost" type="button" data-act="ai-media-clear" style="margin-top:10px">پاک‌کردن فهرست رسانه‌ها</button>
+        </section>
+
+        <section class="card" aria-labelledby="ai-privacy-title">
+          <h2 id="ai-privacy-title">آنچه کاربران می‌بینند</h2>
+          <p class="muted" id="ai-disclosure" style="margin-top:6px"></p>
+        </section>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="shell-error" id="shell-error" hidden></div>
+
+<dialog id="confirm-dialog" aria-labelledby="confirm-title">
+  <div class="dialog-body">
+    <h2 id="confirm-title">تأیید</h2>
+    <p id="confirm-text"></p>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn ghost" type="button" value="cancel">انصراف</button>
+    <button class="btn danger" type="button" value="ok">تأیید</button>
+  </div>
+</dialog>
+
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-const app = window.Telegram?.WebApp;
-app?.ready(); app?.expand?.();
-const $ = id => document.getElementById(id);
-const result = $('result');
-let renewingId = null;
-let role = 'none';
-// Kept in step with tgcloud/lib/classes.js (plain browser JS has no access to it).
-const WEEKDAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
-
-function call(name, input) {
-  return new Promise((resolve, reject) => {
-    if (!app?.initData || !app?.Serverless) { reject(new Error('این صفحه را از @KNTU_aidbot در تلگرام باز کنید.')); return; }
-    app.Serverless.call(name, input || {}, (err, data) => err ? reject(new Error(err.message || 'درخواست انجام نشد.')) : resolve(data));
-  });
-}
-const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const slotText = s => `${WEEKDAYS[s.weekday] ? WEEKDAYS[s.weekday] + ' ' : ''}${s.from}${s.to ? ' - ' + s.to : ''}`;
-
-function accountCard(a) {
-  const health = a.health || {};
-  const when = health.at ? new Date(health.at).toLocaleString('fa-IR') : 'هنوز بررسی نشده';
-  const states = {ok:'سالم', auth:'نشست منقضی', partial:'پوشش ناقص', unreachable:'عدم دسترسی', layout:'تغییر ساختار سایت', error:'خطا', unknown:'نامشخص'};
-  return `<div class="card" data-id="${escapeHtml(a.id)}">
-    <b>${escapeHtml(a.label || a.id)}</b>
-    <span class="muted">${a.mode === 'session' ? 'کوکی نشست' : 'توکن دانشگاه'} · ${a.enabled ? 'فعال' : 'غیرفعال'} · ${escapeHtml(states[health.state] || 'نامشخص')}${Number.isFinite(Number(health.courses)) ? ' · ' + health.courses + ' درس' : ''}</span>
-    <span class="muted">صاحب حساب ${a.ownerId} · آخرین بررسی ${escapeHtml(when)}${a.hasCredential ? '' : ' · فاقد اعتبار اتصال'}</span>
-    <div><button class="ghost" data-act="renew" data-id="${escapeHtml(a.id)}">تازه‌سازی</button>
-    <button class="ghost" data-act="${a.enabled ? 'disable' : 'enable'}" data-id="${escapeHtml(a.id)}">${a.enabled ? 'غیرفعال' : 'فعال'}</button>
-    <button class="ghost danger" data-act="delete" data-id="${escapeHtml(a.id)}">حذف اتصال</button></div>
-  </div>`;
-}
-
-function classCard(c) {
-  const b = c.binding || {};
-  const slots = (b.slots || []).map(slotText).join('، ');
-  return `<div class="card" data-key="${escapeHtml(c.key)}" data-id="${c.id}">
-    <b>#${c.id} ${escapeHtml(c.name)}</b>
-    <span class="muted">${escapeHtml(c.text)}</span>
-    <input data-f="label" placeholder="نام کلاس (17)" value="${escapeHtml(b.label || '')}" maxlength="20">
-    <span>استاد: ${escapeHtml(b.professor || b.professorName || 'نامشخص')} (شرکت‌کنندگان)</span>
-    <label>زمان کلاس (جایگزین شماره کلاس؛ خالی = شماره کلاس)</label>
-    <input data-f="slots" placeholder="9:00 - 10:30" value="${escapeHtml(slots)}" maxlength="200">
-    <div><button class="ghost" data-act="save">ذخیره</button>
-    <button class="ghost" data-act="detect">بررسی سایت</button>
-    <button class="ghost danger" data-act="clear">حذف</button></div>
-    <div class="muted" data-out></div>
-  </div>`;
-}
-
-function render(data) {
-  role = data.role;
-  $('role').textContent = data.owner
-    ? 'مدیر ربات: مدیریت اتصال‌ها، کلاس‌ها و مقصد اطلاع‌رسانی'
-    : 'همکار تأییدشده: فقط اتصال خودتان را مدیریت می‌کنید.';
-  $('accounts').innerHTML = data.accounts.length ? data.accounts.map(accountCard).join('') : '<p class="muted">هنوز اتصالی ثبت نشده است.</p>';
-  $('destination').textContent = data.destination.text;
-  const s = data.status;
-  $('status').innerHTML = s
-    ? `<b>${escapeHtml(s.checkedAt)}</b><br>${s.courses} درس · ${s.sent} اعلان گروهی · ${s.personal?.sent ?? 0} اعلان شخصی · ${(s.failures || []).length} درس ناموفق<br>حساب سالم: ${s.accounts?.ok ?? 0} از ${s.accounts?.total ?? 0}`
-    : 'هنوز بررسی کامل نشده است.';
-  if (data.pendingDigests?.length) {
-    $('status').innerHTML += `<br>${data.pendingDigests.length} نمای اولیه در انتظار انتشار مدیر با <code>/digest</code>`;
-  }
-  $('limits').textContent = 'خوانده می‌شود: فعالیت‌ها، توضیحات و تاریخ‌های قابل مشاهده، پیوست‌های معرفی تکلیف، زمان آزمون و فهرست شرکت‌کنندگان برای تطبیق نام استاد و درس‌های درخواستی دانشجو. فهرست کامل دانشجویان ذخیره یا منتشر نمی‌شود. نمره‌ها، پاسخ‌های تحویلی و پیام‌های خصوصی خوانده نمی‌شود. محتوای فایل PDF، پاسخ‌های تالار و تغییر فایل در همان نشانی بررسی نمی‌شود.';
-  $('check').hidden = !data.owner;
-  $('formTitle').textContent = renewingId ? 'تازه‌سازی این اتصال' : 'افزودن اتصال';
-  $('cancel').hidden = !renewingId;
-  if (data.directory) renderDirectory(data.directory);
-}
-
-function renderDirectory(directory) {
-  $('classSection').hidden = false;
-  const courses = directory.courses || [];
-  $('classList').innerHTML = courses.length ? courses.map(classCard).join('') : '<p class="muted">هنوز درسی تحت پوشش نیست؛ یک بررسی اجرا کنید.</p>';
-  const professors = directory.professors || [];
-  $('professors').innerHTML = professors.length
-    ? professors.map(p => `<span class="muted">${escapeHtml(p.code)} — ${escapeHtml(p.name)}</span>`).join('<br>')
-    : '';
-}
-
-async function refresh() {
-  const data = await call('accounts', { action: 'list' });
-  if (data.owner) data.directory = await call('directory', { action: 'list' });
-  render(data);
-  return data;
-}
-
-function say(message) { result.textContent = message; }
-
-$('form').onsubmit = async e => {
-  e.preventDefault();
-  const button = $('save'); button.disabled = true;
-  say('در حال آزمایش اتصال دانشگاه…');
-  const input = { mode: 'session', secret: $('secret').value, label: $('label').value };
-  if (renewingId) input.accountId = renewingId;
-  try {
-    const data = await call('setup', input);
-    $('secret').value = '';
-    renewingId = null;
-    await refresh();
-    say(`اتصال برقرار شد؛ ${data.courses} درس قابل مشاهده است. نخستین بررسی هر درس، محتوای موجود را بدون ارسال اعلان ثبت می‌کند.`);
-  } catch (err) { say(err.message); }
-  finally { button.disabled = false; }
-};
-$('cancel').onclick = () => { renewingId = null; $('secret').value = ''; $('cancel').hidden = true; $('formTitle').textContent = 'افزودن اتصال'; say(''); };
-
-$('accounts').onclick = async e => {
-  const b = e.target.closest('button[data-act]'); if (!b) return;
-  const id = b.dataset.id; const act = b.dataset.act;
-  if (act === 'renew') { renewingId = id; $('formTitle').textContent = 'تازه‌سازی این اتصال'; $('cancel').hidden = false; $('secret').focus(); return; }
-  b.disabled = true;
-  try {
-    if (act === 'delete' && !confirm('این اتصال حذف شود؟ سابقهٔ عمومی درس‌ها حفظ می‌شود.')) return;
-    await call('accounts', { action: act, accountId: id });
-    await refresh(); say(act === 'delete' ? 'اتصال حذف شد.' : act === 'enable' ? 'اتصال فعال شد.' : 'اتصال غیرفعال شد.');
-  } catch (err) { say(err.message); }
-  finally { b.disabled = false; }
-};
-
-$('classList').onclick = async e => {
-  const b = e.target.closest('button[data-act]'); if (!b) return;
-  const card = b.closest('.card');
-  const id = Number(card.dataset.id);
-  const out = card.querySelector('[data-out]');
-  const value = f => card.querySelector(`[data-f="${f}"]`).value.trim();
-  b.disabled = true; out.textContent = '…';
-  try {
-    if (b.dataset.act === 'detect') {
-      const found = await call('directory', { action: 'detect', courseId: id, limit: 1 });
-      const entry = found.results?.[0];
-      out.textContent = entry?.detected?.available
-        ? `استاد: ${(entry.detected.teachers || []).join('، ') || 'نامشخص'}`
-        : `صفحه درس خوانده نشد (${entry?.detected?.reason || entry?.error || 'نامشخص'})`;
-    } else if (b.dataset.act === 'clear') {
-      if (!confirm('این تنظیم کلاس حذف شود؟')) return;
-      const data = await call('directory', { action: 'clear', courseId: id });
-      renderDirectory(data); say(`تنظیم درس #${id} حذف شد.`);
-    } else {
-      const input = { action: 'set', courseId: id, label: value('label'), slots: value('slots'), source: 'manual' };
-      await call('directory', input);
-      const data = await call('directory', { action: 'list' });
-      renderDirectory(data); say(`ذخیره شد — #${id}`);
-    }
-  } catch (err) { out.textContent = err.message; }
-  finally { b.disabled = false; }
-};
-
-$('profForm').onsubmit = async e => {
-  e.preventDefault();
-  try {
-    await call('directory', { action: 'professor', code: $('profCode').value, name: $('profName').value });
-    $('profCode').value = ''; $('profName').value = '';
-    renderDirectory(await call('directory', { action: 'list' }));
-    say('نام استاد از شرکت‌کنندگان دریافت می‌شود.');
-  } catch (err) { say(err.message); }
-};
-
-$('check').onclick = async () => {
-  const b = $('check'); b.disabled = true; say('در حال بررسی درس‌ها…');
-  try { const r = await call('check', {}); await refresh(); say(r.busy ? 'بررسی دیگری در حال اجراست.' : `${r.courses} درس بررسی شد؛ ${r.sent} اعلان گروهی و ${r.personal?.sent ?? 0} اعلان شخصی ارسال شد.`); }
-  catch (err) { say(err.message); }
-  finally { b.disabled = false; }
-};
-
-refresh().catch(err => { say(err.message); $('role').textContent = 'بررسی دسترسی انجام نشد. برای راهنمای همکاری /cooperate را در ربات بزنید.'; });
-</script></html>
+<script src="./setup.js" defer></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 // never builds it, so this assembles `dist/` first (npm run deploy does both).
 //
 //   dist/index.html, dist/app.css, dist/app.js   the public student Mini App (host root)
-//   dist/setup/index.html                        the protected cooperation/admin form
+//   dist/setup/*                                 the protected cooperation/admin console
 //
 // Only these files are ever copied: no sources outside web/ and setup/, no config,
 // no secrets.
@@ -15,6 +15,8 @@ const OUTPUT = [
   ['web/app.css', 'dist/app.css'],
   ['web/app.js', 'dist/app.js'],
   ['setup/index.html', 'dist/setup/index.html'],
+  ['setup/setup.css', 'dist/setup/setup.css'],
+  ['setup/setup.js', 'dist/setup/setup.js'],
 ];
 
 async function count(dir) {
@@ -34,5 +36,5 @@ for (const [from, to] of OUTPUT) {
   if (process.argv.includes('--verbose')) console.log(`${from} → ${to}`);
 }
 const files = await count(dist);
-console.log(`Front-end built: ${files} files in dist/ (student app at /, cooperation form at /setup/).`);
+console.log(`Front-end built: ${files} files in dist/ (student app at /, console at /setup/).`);
 if (files !== OUTPUT.length) throw new Error(`unexpected dist contents: ${files} files`);
