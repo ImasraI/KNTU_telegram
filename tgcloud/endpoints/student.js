@@ -1,8 +1,8 @@
 import { EndpointError } from 'sdk';
-import { db } from '../lib/database.js';
-import { inArray } from '../lib/database.js';
+import { db, inArray, sql } from '../lib/database.js';
 import { snapshots } from '../schema.js';
-import { getSetting } from '../lib/settings.js';
+import { getSetting, putSetting } from '../lib/settings.js';
+import { AI_DISCLOSURE, normalizeConfig } from '../lib/ai-policy.js';
 import { directorySummary } from '../lib/monitor.js';
 import { courseKey } from '../lib/plan.js';
 import { CONTACT, FULL_NAME_HINT, FULL_NAME_LABEL, FULL_NAME_PROMPT, PRIVACY, PUBLIC_COMMANDS } from '../lib/student-policy.js';
@@ -18,6 +18,19 @@ import { FILTERS, PAGE_SIZE, courseCounts, courseView, coverageView, freshness, 
 // by the platform, and no input can name another user. A response never carries a
 // credential, an account id, a participant roster or the long university code.
 const MAX_KEYS_PER_QUERY = 100;
+const AI_CONSENT = tgId => 'ai:consent:' + tgId;
+
+// The optional smart chat, described in the caller's own terms. `enabled` is this
+// caller's consent; `available` is the owner's global switch. Neither value says
+// anything about another subscriber.
+async function aiFacts(callerId) {
+  const config = normalizeConfig(await getSetting('ai:config'));
+  return {
+    available: config.enabled,
+    enabled: callerId ? !!(await getSetting(AI_CONSENT(callerId))) : false,
+    disclosure: AI_DISCLOSURE,
+  };
+}
 
 function policyView() {
   return {
@@ -79,10 +92,12 @@ async function courses(now) {
 
 async function payload(callerId, now) {
   const list = await courses(now);
+  const ai = await aiFacts(callerId);
   return {
     coverage: await coverage(now, list),
     courses: list,
-    me: studentState(callerId ? await subscriber(callerId) : null),
+    me: { ...studentState(callerId ? await subscriber(callerId) : null), aiChat: ai.enabled },
+    ai,
     policy: policyView(),
   };
 }
@@ -119,7 +134,8 @@ export default async function (input, ctx) {
   // own courses, so a deadline can be found without opening course by course.
   if (action === 'feed') {
     const list = await courses(now);
-    const me = studentState(callerId ? await subscriber(callerId) : null);
+    const ai = await aiFacts(callerId);
+    const me = { ...studentState(callerId ? await subscriber(callerId) : null), aiChat: ai.enabled };
     const mine = me.registered && me.courses.length;
     const scope = input?.scope === 'mine' && mine ? 'mine' : 'all';
     const selected = scope === 'mine' ? list.filter(entry => me.courses.includes(String(entry.id))) : list;
@@ -148,6 +164,7 @@ export default async function (input, ctx) {
       courses: selected.length,
       coverage: coverageView(status, list.length, now, newestRead(selected)),
       me,
+      ai,
       policy: policyView(),
     };
   }
@@ -185,6 +202,36 @@ export default async function (input, ctx) {
     const resumed = await resumeStudent(caller);
     if (resumed.state === 'not-registered') throw new EndpointError('ابتدا ثبت‌نام کنید تا اعلان شخصی فعال شود.', { code: 'NOT_REGISTERED' });
     return { ...await payload(caller, now), result: { notifications: 'on', state: resumed.state } };
+  }
+  // Delete the short conversation memory without changing consent.
+  if (action === 'aiClear') {
+    const ai = await aiFacts(caller);
+    let memoryCleared = false;
+    try {
+      await db.run(sql`DELETE FROM ai_threads WHERE scope = ${'u:' + caller}`);
+      memoryCleared = true;
+    } catch { /* conversation store not provisioned yet */ }
+    return { ...await payload(caller, now), result: { aiChat: ai.enabled, memoryCleared } };
+  }
+
+  // The optional smart chat. Consent is per caller; turning it off also asks the
+  // shared conversation store to drop this user's short memory. If that store is
+  // not provisioned yet, consent still turns off and the result says so instead
+  // of pretending a deletion happened.
+  if (action === 'aiOn' || action === 'aiOff') {
+    const enabled = action === 'aiOn';
+    if (enabled && !(await aiFacts(caller)).available) {
+      throw new EndpointError('گفت‌وگوی هوشمند فعلاً در دسترس نیست.', { code: 'AI_UNAVAILABLE' });
+    }
+    await putSetting(AI_CONSENT(caller), enabled);
+    let memoryCleared = false;
+    if (!enabled) {
+      try {
+        await db.run(sql`DELETE FROM ai_threads WHERE scope = ${'u:' + caller}`);
+        memoryCleared = true;
+      } catch { /* conversation store not provisioned yet; consent is still off */ }
+    }
+    return { ...await payload(caller, now), result: { aiChat: enabled, memoryCleared } };
   }
   if (action === 'forget') {
     // Personal-data deletion: the subscription row (Telegram id, displayed name,
