@@ -38,8 +38,13 @@ const freshness = document.getElementById('freshness');
 const tabbar = document.getElementById('tabbar');
 
 /* ------------------------------------------------------------------ helpers */
-const fa = value => Number(value ?? 0).toLocaleString('fa-IR');
-const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Persian/Arabic-Indic digits become ASCII everywhere: the words and the Persian
+// calendar stay, but numbers read 1405/7/25 instead of ۱۴۰۵/۷/۲۵. Server strings
+// pass through escapeHtml, so a deadline quoted from VC is normalised too.
+const latinDigits = value => String(value ?? '').replace(/[۰-۹٠-٩]/g, digit => String(digit.charCodeAt(0) & 0xf));
+const num = value => latinDigits(Number(value ?? 0).toLocaleString('en-US'));
+const escapeHtml = value => latinDigits(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DATE = 'fa-IR-u-nu-latn';
 const isLatin = text => /^[\p{Script=Latin}\s.'-]+$/u.test(String(text ?? ''));
 
 function relativeTime(iso) {
@@ -47,12 +52,12 @@ function relativeTime(iso) {
   const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
   if (seconds < 90) return 'همین چند لحظه پیش';
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${fa(minutes)} دقیقه پیش`;
+  if (minutes < 60) return `${num(minutes)} دقیقه پیش`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${fa(hours)} ساعت پیش`;
+  if (hours < 24) return `${num(hours)} ساعت پیش`;
   const days = Math.round(hours / 24);
-  if (days < 30) return `${fa(days)} روز پیش`;
-  return new Date(iso).toLocaleDateString('fa-IR');
+  if (days < 30) return `${num(days)} روز پیش`;
+  return new Date(iso).toLocaleDateString(DATE);
 }
 
 function toast(message, kind = 'ok') {
@@ -120,20 +125,44 @@ function fail(error) {
 }
 
 /* ------------------------------------------------------------------- theme */
+// Dark is the default. The choice is stored per user and the Telegram chrome is
+// told our background colour; adopting Telegram's own light themeParams would
+// otherwise override the dark default on a light client.
+const THEME_KEY = 'kntu.theme';
+const THEMES = { dark: { bg: '#0d1219' }, light: { bg: '#f1f4f9' } };
+const ICONS = {
+  light: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-1-6h2v3h-2Zm0 17h2v3h-2ZM2 11h3v2H2Zm17 0h3v2h-3ZM4.9 6.3l1.4-1.4 2.2 2.2-1.4 1.4Zm10.6 10.6 1.4-1.4 2.2 2.2-1.4 1.4ZM4.9 17.7l2.2-2.2 1.4 1.4-2.2 2.2Zm10.6-10.6 2.2-2.2 1.4 1.4-2.2 2.2Z"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 14.5A9 9 0 0 1 9.5 3 9 9 0 1 0 21 14.5Z"/></svg>',
+};
+
+function savedTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'dark' || saved === 'light') return saved;
+  } catch { /* private mode or blocked storage */ }
+  return 'dark';
+}
+
+function setTheme(theme) {
+  try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage is optional */ }
+  applyTheme();
+}
+
 function applyTheme() {
-  const params = app?.themeParams ?? {};
-  const root = document.documentElement.style;
-  const map = {
-    bg_color: '--bg', secondary_bg_color: '--card', text_color: '--text',
-    hint_color: '--hint', button_color: '--accent', button_text_color: '--accent-text',
-    link_color: '--accent', section_separator_color: '--line',
-  };
-  for (const [key, name] of Object.entries(map)) if (params[key]) root.setProperty(name, params[key]);
-  if (params.secondary_bg_color) {
-    root.setProperty('--card', params.secondary_bg_color);
-    root.setProperty('--card-2', params.bg_color ?? params.secondary_bg_color);
-    root.setProperty('--card-3', params.bg_color ?? params.secondary_bg_color);
+  const theme = savedTheme();
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', theme === 'dark' ? 'dark light' : 'light dark');
+  const next = theme === 'dark' ? 'light' : 'dark';
+  const button = document.querySelector('[data-act="theme"]');
+  if (button) {
+    button.innerHTML = ICONS[next];
+    button.setAttribute('aria-label', next === 'dark' ? 'تغییر به حالت تاریک' : 'تغییر به حالت روشن');
+    button.title = next === 'dark' ? 'حالت تاریک' : 'حالت روشن';
   }
+  // Telegram's own chrome follows the page, so the header never mismatches it.
+  try { app?.setHeaderColor?.(THEMES[theme].bg); } catch { /* older client */ }
+  try { app?.setBackgroundColor?.(THEMES[theme].bg); } catch { /* older client */ }
 }
 
 /* ------------------------------------------------------------------ pieces */
@@ -143,7 +172,7 @@ function freshnessPill(check) {
 }
 
 function coverageNote(coverage) {
-  const every = `به‌روزرسانی خودکار هر ${fa(coverage.intervalMinutes)} دقیقه انجام می‌شود`;
+  const every = `به‌روزرسانی خودکار هر ${num(coverage.intervalMinutes)} دقیقه انجام می‌شود`;
   if (coverage.recorded?.olderThanReads) {
     return `<div class="notice"><b>خواندن درس‌ها از بررسی کامل جدا است</b>
       بعضی درس‌ها بعد از آخرین بررسی کامل خوانده شده‌اند؛ زمان خواندن هر درس در صفحهٔ همان درس آمده است.</div>`;
@@ -166,23 +195,23 @@ function coverageHero(data) {
     <div class="hero-top">
       <div class="hero-copy">
         <span class="hero-eyebrow">درس تحت پوشش ربات</span>
-        <div class="hero-count">${fa(coverage.courses)}</div>
+        <div class="hero-count">${num(coverage.courses)}</div>
         <div class="chips">
           <span class="chip ${coverage.check.state === 'fresh' ? 'accent' : ''}">${escapeHtml(coverage.check.state === 'unknown' ? 'زمان بررسی نامشخص' : `${coverage.check.label} · ${relativeTime(coverage.check.at)}`)}</span>
           ${coverage.recorded?.at ? `<span class="chip">آخرین بررسی کامل: ${escapeHtml(relativeTime(coverage.recorded.at))}</span>` : ''}
         </div>
       </div>
-      <div class="ring" style="--p:${percent}" role="img" aria-label="${data.me.registered ? `${fa(mine.length)} درس از ${fa(coverage.courses)} درس تحت پوشش شما ثبت شده است` : 'هنوز ثبت‌نام نکرده‌اید'}">
-        <span class="ring-label">${data.me.registered ? `${fa(percent)}٪` : '—'}<span class="ring-cap">${data.me.registered ? 'از پوشش' : 'بدون ثبت‌نام'}</span></span>
+      <div class="ring" style="--p:${percent}" role="img" aria-label="${data.me.registered ? `${num(mine.length)} درس از ${num(coverage.courses)} درس تحت پوشش شما ثبت شده است` : 'هنوز ثبت‌نام نکرده‌اید'}">
+        <span class="ring-label">${data.me.registered ? `${num(percent)}%` : '—'}<span class="ring-cap">${data.me.registered ? 'از پوشش' : 'بدون ثبت‌نام'}</span></span>
       </div>
     </div>
     <div class="stat-row">
-      <div class="stat"><b>${fa(total)}</b><span>فعالیت ثبت‌شده</span></div>
-      <div class="stat"><b>${fa(data.courses.reduce((sum, c) => sum + (c.counts?.assign ?? 0), 0))}</b><span>تکلیف</span></div>
-      <div class="stat"><b>${fa(data.courses.reduce((sum, c) => sum + (c.counts?.exam ?? 0), 0))}</b><span>آزمون</span></div>
+      <div class="stat"><b>${num(total)}</b><span>فعالیت ثبت‌شده</span></div>
+      <div class="stat"><b>${num(data.courses.reduce((sum, c) => sum + (c.counts?.assign ?? 0), 0))}</b><span>تکلیف</span></div>
+      <div class="stat"><b>${num(data.courses.reduce((sum, c) => sum + (c.counts?.exam ?? 0), 0))}</b><span>آزمون</span></div>
     </div>
     ${coverage.partial ? `<div class="notice warn"><b>پوشش این بررسی کامل نبود</b>
-      ${fa(coverage.failedCourses + coverage.lostCourses)} درس در آخرین بررسی خوانده نشد؛ اطلاعات نمایش‌داده‌شده مربوط به بررسی‌های قبلی است.</div>` : ''}
+      ${num(coverage.failedCourses + coverage.lostCourses)} درس در آخرین بررسی خوانده نشد؛ اطلاعات نمایش‌داده‌شده مربوط به بررسی‌های قبلی است.</div>` : ''}
     ${coverageNote(coverage)}
   </div>`;
 }
@@ -197,10 +226,10 @@ function professorLine(name) {
 function courseCard(course) {
   const counts = course.counts ?? {};
   const pills = [
-    counts.assign ? `<span class="pill assign"><b>${fa(counts.assign)}</b> تکلیف</span>` : '',
-    counts.exam ? `<span class="pill exam"><b>${fa(counts.exam)}</b> آزمون</span>` : '',
-    counts.file ? `<span class="pill"><b>${fa(counts.file)}</b> فایل</span>` : '',
-    counts.notice ? `<span class="pill"><b>${fa(counts.notice)}</b> اطلاعیه</span>` : '',
+    counts.assign ? `<span class="pill assign"><b>${num(counts.assign)}</b> تکلیف</span>` : '',
+    counts.exam ? `<span class="pill exam"><b>${num(counts.exam)}</b> آزمون</span>` : '',
+    counts.file ? `<span class="pill"><b>${num(counts.file)}</b> فایل</span>` : '',
+    counts.notice ? `<span class="pill"><b>${num(counts.notice)}</b> اطلاعیه</span>` : '',
   ].join('');
   return `<button class="course" type="button" data-act="course" data-id="${course.id}">
     <span class="course-head">
@@ -217,12 +246,12 @@ function dueLabel(iso) {
   if (!iso) return null;
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return null;
-  const date = new Date(ms).toLocaleDateString('fa-IR', { month: 'long', day: 'numeric' });
+  const date = new Date(ms).toLocaleDateString(DATE, { month: 'long', day: 'numeric' });
   const days = Math.ceil((ms - Date.now()) / 86400000);
   if (days < 0) return `مهلت گذشته · ${date}`;
   if (days === 0) return `مهلت امروز · ${date}`;
   if (days === 1) return `مهلت فردا · ${date}`;
-  return `${fa(days)} روز مانده · ${date}`;
+  return `${num(days)} روز مانده · ${date}`;
 }
 
 function itemRow(item, context = null) {
@@ -290,7 +319,7 @@ function registerResultCard(result) {
     return `<div class="notice" role="status"><b>ثبت‌نام انجام شد</b>
       فعلاً درسی با این نام پیدا نشد. درس‌های تازهٔ تحت پوشش خودکار بررسی می‌شوند. ${escapeHtml(state.data.policy.support)}</div>`;
   }
-  return `<div class="notice ok" role="status"><b>${fa(result.courses.length)} درس ثبت شد</b>
+  return `<div class="notice ok" role="status"><b>${num(result.courses.length)} درس ثبت شد</b>
     ${result.incomplete ? 'بعضی فهرست‌ها در این بررسی قابل خواندن نبود؛ ممکن است فهرست ناقص باشد.' : 'اعلان تغییرات بعدی این درس‌ها برای شما ارسال می‌شود.'}</div>`;
 }
 
@@ -342,13 +371,13 @@ function viewHome() {
   return `${result ? `<div style="margin-bottom:12px">${registerResultCard(result)}</div>` : ''}
   ${coverageHero(data)}
   ${data.me.registered ? `<div class="section">
-    <div class="section-head"><h2>درس‌های من</h2><span class="badge accent">${fa(mine.length)} درس</span></div>
+    <div class="section-head"><h2>درس‌های من</h2><span class="badge accent">${num(mine.length)} درس</span></div>
     ${mine.length ? `<div class="grid courses">${mine.map(courseCard).join('')}</div>`
       : `<div class="notice"><b>هنوز درسی شناسایی نشده است</b>درس‌های تازهٔ تحت پوشش برای شما خودکار بررسی می‌شوند. ${escapeHtml(data.policy.support)}</div>`}
     ${data.me.ambiguous ? '<div class="notice warn" style="margin-top:10px"><b>نام شما با چند نفر در فهرست شرکت‌کنندگان یکسان بود</b>برای جلوگیری از اتصال اشتباه، درسی ثبت نشد. برای بررسی به پشتیبان پیام بدهید.</div>' : ''}
   </div>`
     : `<div class="section">
-      <div class="section-head"><h2>شروع کنید</h2><span class="muted">۳ گام</span></div>
+      <div class="section-head"><h2>شروع کنید</h2><span class="muted">3 گام</span></div>
       <div class="card">
         <ol class="steps">
           <li><b>درس‌ها را ببینید.</b> مشاهدهٔ عمومی بدون تأیید و بدون اطلاعات دانشگاه است.</li>
@@ -360,7 +389,7 @@ function viewHome() {
     </div>`}
   <div class="section">
     <div class="section-head"><h2>درس‌های تحت پوشش</h2>
-      <button class="chip" type="button" data-act="tab" data-tab="courses" data-course-scope="all">همه ${fa(data.courses.length)}</button></div>
+      <button class="chip" type="button" data-act="tab" data-tab="courses" data-course-scope="all">همه ${num(data.courses.length)}</button></div>
     ${data.courses.length ? `<div class="grid courses">${data.courses.slice(0, 4).map(courseCard).join('')}</div>`
       : emptyState('هنوز درسی ثبت نشده است', 'پس از اولین بررسی خودکار، فهرست درس‌ها اینجا نمایش داده می‌شود')}
   </div>`;
@@ -387,7 +416,7 @@ function viewCourses() {
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6Z"/></svg>
     </button>
   </div>
-  <p class="muted" id="search-count" role="status" aria-live="polite">${fa(list.length)} درس${query ? ' با این جست‌وجو' : ''} · ${data.me.registered ? 'برای دیدن تکلیف‌ها روی هر درس بزنید' : 'مشاهده برای همه آزاد است'}</p>
+  <p class="muted" id="search-count" role="status" aria-live="polite">${num(list.length)} درس${query ? ' با این جست‌وجو' : ''} · ${data.me.registered ? 'برای دیدن تکلیف‌ها روی هر درس بزنید' : 'مشاهده برای همه آزاد است'}</p>
   <div class="grid courses" id="course-list">
     ${list.length ? list.map(course => courseCard({ ...course, mine: mine.has(String(course.id)) })).join('')
       : emptyState(query ? 'درسی پیدا نشد' : 'هنوز درسی برای شما شناسایی نشده', query ? 'عبارت دیگری را جست‌وجو کنید.' : 'برای مرور فهرست عمومی، همهٔ درس‌ها را انتخاب کنید.',
@@ -411,7 +440,7 @@ function viewFeed() {
       <button type="button" data-act="feed-scope" data-scope="mine" aria-pressed="${feed.scoped}">درس‌های من</button>
     </div>
     ${feed.requestedScope === 'mine' && !feed.scoped ? '<div class="notice" style="margin-bottom:10px">برای دیدن تکلیف‌های درس‌های خودتان ابتدا ثبت‌نام کنید؛ اکنون همهٔ درس‌ها نمایش داده می‌شود.</div>' : ''}
-    <p class="muted" style="margin-bottom:8px">${fa(feed.total)} مورد در ${fa(feed.courses)} درس · اطلاعات آخرین بررسی (${escapeHtml(relativeTime(feed.scan?.at))})</p>
+    <p class="muted" style="margin-bottom:8px">${num(feed.total)} مورد در ${num(feed.courses)} درس · اطلاعات آخرین بررسی (${escapeHtml(relativeTime(feed.scan?.at))})</p>
     <div class="card" id="feed-list">
       ${feed.items.length ? feed.items.map(item => itemRow(item, `${item.courseName}${item.classLabel ? ' · ' + item.classLabel : ''}`)).join('')
         : emptyState('موردی ثبت نشده است', 'با بررسی خودکار بعدی، تکلیف‌ها و امتحان‌های تازه اینجا نمایش داده می‌شوند')}
@@ -431,15 +460,15 @@ function viewMe() {
     <dl class="facts">
       <div><dt>نام ثبت‌شده</dt><dd${me.name && isLatin(me.name) ? ' dir="ltr"' : ''}>${escapeHtml(me.name ?? '—')}</dd></div>
       <div><dt>تطبیق هویت</dt><dd>${me.exactIdentity ? 'شناسهٔ ثابت شرکت‌کننده' : me.registered ? 'فقط با نام نمایشی' : '—'}</dd></div>
-      <div><dt>درس‌های شناسایی‌شده</dt><dd>${me.registered ? `${fa(mine.length)} درس` : '—'}</dd></div>
-      ${me.registeredAt ? `<div><dt>تاریخ ثبت</dt><dd>${escapeHtml(new Date(me.registeredAt).toLocaleDateString('fa-IR'))}</dd></div>` : ''}
+      <div><dt>درس‌های شناسایی‌شده</dt><dd>${me.registered ? `${num(mine.length)} درس` : '—'}</dd></div>
+      ${me.registeredAt ? `<div><dt>تاریخ ثبت</dt><dd>${escapeHtml(new Date(me.registeredAt).toLocaleDateString(DATE))}</dd></div>` : ''}
       <div><dt>اعلان شخصی</dt><dd>${me.notifications === 'on' ? 'فعال' : me.notifications === 'paused' ? 'متوقف' : 'غیرفعال'}</dd></div>
     </dl>
     ${me.registrationPending ? '<div class="notice info" style="margin-top:10px">درخواست ثبت شما ذخیره شده و در حال بررسی است؛ نتیجه در پیام خصوصی ربات ارسال می‌شود.</div>' : ''}
   </div>
   ${!me.registered ? `<div class="section">${registerForm(data)}</div>` : ''}
   ${me.registered ? `<div class="section">
-    <div class="section-head"><h2>درس‌های من</h2><span class="badge accent">${fa(mine.length)}</span></div>
+    <div class="section-head"><h2>درس‌های من</h2><span class="badge accent">${num(mine.length)}</span></div>
     ${mine.length ? `<div class="grid courses">${mine.map(courseCard).join('')}</div>` : '<div class="notice">هنوز درسی شناسایی نشده است.</div>'}
   </div>` : ''}
   <div class="section">${notificationCard(data)}</div>
@@ -463,7 +492,7 @@ function viewHelp() {
       <li>تغییرات بعدی درس‌های شما در گفت‌وگوی خصوصی ربات ارسال می‌شود؛ هر زمان می‌توانید متوقف یا حذف کنید.</li>
       <li>گفت‌وگوی هوشمند اختیاری است و از تب «من» روشن یا خاموش می‌شود.</li>
     </ol>
-    <p class="muted" style="margin-top:10px">اطلاعات این مینی‌اپ از آخرین بررسی خودکار است (هر ${fa(help.intervalMinutes)} دقیقه) و «تازه» یا «قدیمی» بودن آن در نوار بالای صفحه دیده می‌شود.</p>
+    <p class="muted" style="margin-top:10px">اطلاعات این مینی‌اپ از آخرین بررسی خودکار است (هر ${num(help.intervalMinutes)} دقیقه) و «تازه» یا «قدیمی» بودن آن در نوار بالای صفحه دیده می‌شود.</p>
   </div>
   <div class="section card">
     <h2>حریم خصوصی</h2>
@@ -520,6 +549,8 @@ function syncTabs() {
     const active = key === state.tab;
     button.setAttribute('aria-selected', String(active));
     button.tabIndex = active ? 0 : -1;
+    // One panel is reused for every section, so it points at the active tab.
+    if (active) view.setAttribute('aria-labelledby', button.id);
   }
 }
 
@@ -622,10 +653,10 @@ function renderDetail() {
         ${course.classLabel ? `<span class="chip accent">${escapeHtml(course.classLabel)}</span>` : ''}</div>
       ${professorLine(course.professor)}
       <div class="chips">
-        <span class="pill assign"><b>${fa(counts.assign ?? 0)}</b> تکلیف</span>
-        <span class="pill exam"><b>${fa(counts.exam ?? 0)}</b> آزمون</span>
-        <span class="pill"><b>${fa(counts.file ?? 0)}</b> فایل</span>
-        <span class="pill"><b>${fa(counts.notice ?? 0)}</b> اطلاعیه</span>
+        <span class="pill assign"><b>${num(counts.assign ?? 0)}</b> تکلیف</span>
+        <span class="pill exam"><b>${num(counts.exam ?? 0)}</b> آزمون</span>
+        <span class="pill"><b>${num(counts.file ?? 0)}</b> فایل</span>
+        <span class="pill"><b>${num(counts.notice ?? 0)}</b> اطلاعیه</span>
       </div>
       <p class="muted" style="margin-top:10px">${freshnessPill(detail.scan)}</p>
     </div>
@@ -637,7 +668,7 @@ function renderDetail() {
         : emptyState('موردی در این بخش نیست', 'با بررسی بعدی، موارد تازه اینجا نمایش داده می‌شوند')}
     </div>
     ${detail.items.hasMore ? '<button class="btn ghost" type="button" data-act="detail-more" style="margin-top:12px">موارد بیشتر</button>' : ''}
-    <p class="muted" style="margin-top:12px">${escapeHtml(detail.items.total ? `${fa(detail.items.total)} مورد` : 'بدون مورد')} از آخرین بررسی (${escapeHtml(relativeTime(detail.scan?.at))}). ${escapeHtml(detail.policy.support)}</p>`;
+    <p class="muted" style="margin-top:12px">${escapeHtml(detail.items.total ? `${num(detail.items.total)} مورد` : 'بدون مورد')} از آخرین بررسی (${escapeHtml(relativeTime(detail.scan?.at))}). ${escapeHtml(detail.policy.support)}</p>`;
 }
 
 async function refreshDetail(filter) {
@@ -675,7 +706,7 @@ async function register(name) {
     state.tab = data.result.ambiguous || !data.result.courses.length ? 'home' : 'me';
     const message = data.result.queued ? 'درخواست ثبت شد؛ نتیجه در پیام خصوصی ربات ارسال می‌شود.'
       : data.result.ambiguous ? 'نام شما هم‌نام داشت؛ برای بررسی به پشتیبان پیام بدهید.'
-        : data.result.courses.length ? `${fa(data.result.courses.length)} درس شناسایی و ثبت شد.`
+        : data.result.courses.length ? `${num(data.result.courses.length)} درس شناسایی و ثبت شد.`
           : 'ثبت‌نام انجام شد؛ فعلاً درسی پیدا نشد.';
     toast(message);
     announce(message);
@@ -697,7 +728,7 @@ async function refreshRegisteredCourses() {
     if (data.me.courses.length) state.tab = 'me';
     render();
     if (data.me.registered) {
-      const message = data.me.courses.length ? `${fa(data.me.courses.length)} درس شناسایی شد.` : 'ثبت‌نام کامل شد؛ فعلاً درسی پیدا نشد.';
+      const message = data.me.courses.length ? `${num(data.me.courses.length)} درس شناسایی شد.` : 'ثبت‌نام کامل شد؛ فعلاً درسی پیدا نشد.';
       toast(message);
       announce(message);
     }
@@ -847,6 +878,12 @@ document.addEventListener('click', async event => {
   if (!target) return;
   const act = target.dataset.act;
   app?.HapticFeedback?.selectionChanged?.();
+  if (act === 'theme') {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    announce(next === 'dark' ? 'حالت تاریک فعال شد.' : 'حالت روشن فعال شد.');
+    return;
+  }
   if (act === 'tab') { if(target.dataset.courseScope)state.courseScope=target.dataset.courseScope;switchTab(target.dataset.feed ? 'feed' : target.dataset.tab, target.dataset.feed ?? null); return; }
   if (act === 'course-scope') { state.courseScope=target.dataset.scope==='all'?'all':'mine';render();return; }
   if (act === 'refresh' || act === 'retry') {
@@ -953,7 +990,7 @@ document.addEventListener('input', event => {
     : available;
   list.innerHTML = matches.length ? matches.map(courseCard).join('')
     : emptyState('درسی پیدا نشد', 'عبارت دیگری را جست‌وجو کنید');
-  if (count) count.textContent = `${fa(matches.length)} درس${query ? ' با این جست‌وجو' : ''}`;
+  if (count) count.textContent = `${num(matches.length)} درس${query ? ' با این جست‌وجو' : ''}`;
 });
 
 document.addEventListener('keydown', event => {
@@ -980,7 +1017,6 @@ sheet.addEventListener('keydown', event => {
 
 /* --------------------------------------------------------------------- init */
 applyTheme();
-app?.onEvent?.('themeChanged', applyTheme);
 app?.ready?.();
 app?.expand?.();
 app?.disableVerticalSwipes?.();

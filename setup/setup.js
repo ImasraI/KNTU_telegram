@@ -46,8 +46,12 @@ const courseSearchCount = $('course-search-count');
 const confirmDialog = $('confirm-dialog');
 
 /* ------------------------------------------------------------------ helpers */
-const fa = value => Number(value ?? 0).toLocaleString('fa-IR');
-const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Persian/Arabic-Indic digits become ASCII everywhere; words and the Persian
+// calendar stay, so a date reads 1405/7/25 instead of ۱۴۰۵/۷/۲۵.
+const latinDigits = value => String(value ?? '').replace(/[۰-۹٠-٩]/g, digit => String(digit.charCodeAt(0) & 0xf));
+const num = value => latinDigits(Number(value ?? 0).toLocaleString('en-US'));
+const escapeHtml = value => latinDigits(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DATE = 'fa-IR-u-nu-latn';
 
 function relativeTime(value) {
   if (!value) return 'نامشخص';
@@ -56,12 +60,12 @@ function relativeTime(value) {
   const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000));
   if (seconds < 90) return 'همین چند لحظه پیش';
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${fa(minutes)} دقیقه پیش`;
+  if (minutes < 60) return `${num(minutes)} دقیقه پیش`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${fa(hours)} ساعت پیش`;
+  if (hours < 24) return `${num(hours)} ساعت پیش`;
   const days = Math.round(hours / 24);
-  if (days < 30) return `${fa(days)} روز پیش`;
-  return new Date(ms).toLocaleDateString('fa-IR');
+  if (days < 30) return `${num(days)} روز پیش`;
+  return new Date(ms).toLocaleDateString(DATE);
 }
 
 let statusTimer = null;
@@ -125,20 +129,43 @@ function restoreFocus(selector) {
   if (element && element !== document.activeElement) element.focus({ preventScroll: true });
 }
 
+// Dark is the default. The choice is stored per user and the Telegram chrome is
+// told our background colour; adopting Telegram's own light themeParams would
+// otherwise override the dark default on a light client.
+const THEME_KEY = 'kntu.theme';
+const THEMES = { dark: { bg: '#0d1219' }, light: { bg: '#f1f4f9' } };
+const ICONS = {
+  light: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-1-6h2v3h-2Zm0 17h2v3h-2ZM2 11h3v2H2Zm17 0h3v2h-3ZM4.9 6.3l1.4-1.4 2.2 2.2-1.4 1.4Zm10.6 10.6 1.4-1.4 2.2 2.2-1.4 1.4ZM4.9 17.7l2.2-2.2 1.4 1.4-2.2 2.2Zm10.6-10.6 2.2-2.2 1.4 1.4-2.2 2.2Z"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 14.5A9 9 0 0 1 9.5 3 9 9 0 1 0 21 14.5Z"/></svg>',
+};
+
+function savedTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'dark' || saved === 'light') return saved;
+  } catch { /* private mode or blocked storage */ }
+  return 'dark';
+}
+
+function setTheme(theme) {
+  try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage is optional */ }
+  applyTheme();
+}
+
 function applyTheme() {
-  const params = app?.themeParams ?? {};
-  const root = document.documentElement.style;
-  const map = {
-    bg_color: '--bg', secondary_bg_color: '--card', text_color: '--text',
-    hint_color: '--hint', button_color: '--accent', button_text_color: '--accent-text',
-    link_color: '--accent', section_separator_color: '--line',
-  };
-  for (const [key, name] of Object.entries(map)) if (params[key]) root.setProperty(name, params[key]);
-  if (params.secondary_bg_color) {
-    root.setProperty('--card', params.secondary_bg_color);
-    root.setProperty('--card-2', params.bg_color ?? params.secondary_bg_color);
-    root.setProperty('--card-3', params.bg_color ?? params.secondary_bg_color);
+  const theme = savedTheme();
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', theme === 'dark' ? 'dark light' : 'light dark');
+  const next = theme === 'dark' ? 'light' : 'dark';
+  const button = document.querySelector('[data-act="theme"]');
+  if (button) {
+    button.innerHTML = ICONS[next];
+    button.setAttribute('aria-label', next === 'dark' ? 'تغییر به حالت تاریک' : 'تغییر به حالت روشن');
+    button.title = next === 'dark' ? 'حالت تاریک' : 'حالت روشن';
   }
+  // Telegram's own chrome follows the page, so the header never mismatches it.
+  try { app?.setHeaderColor?.(THEMES[theme].bg); } catch { /* older client */ }
+  try { app?.setBackgroundColor?.(THEMES[theme].bg); } catch { /* older client */ }
 }
 
 function confirmAction(title, text) {
@@ -203,13 +230,13 @@ function renderOverview() {
   const tone = ageMinutes === null ? '' : ageMinutes <= 60 ? 'ok' : ageMinutes <= 240 ? 'warn' : 'err';
 
   $('kpis').innerHTML = [
-    kpi(accounts.length ? `${fa(healthy)} از ${fa(accounts.length)}` : '—', 'اتصال سالم', accounts.length ? 'حساب‌های دانشگاهی متصل' : 'هنوز اتصالی ثبت نشده', accounts.length && healthy < accounts.length ? 'warn' : accounts.length ? 'ok' : ''),
-    kpi(fa(courses), 'درس تحت پوشش', 'در آخرین بررسی'),
-    kpi(fa((status?.sent ?? 0) + (status?.personal?.sent ?? 0)), 'اعلان ارسال‌شده', `${fa(status?.personal?.sent ?? 0)} اعلان شخصی`),
+    kpi(accounts.length ? `${num(healthy)} از ${num(accounts.length)}` : '—', 'اتصال سالم', accounts.length ? 'حساب‌های دانشگاهی متصل' : 'هنوز اتصالی ثبت نشده', accounts.length && healthy < accounts.length ? 'warn' : accounts.length ? 'ok' : ''),
+    kpi(num(courses), 'درس تحت پوشش', 'در آخرین بررسی'),
+    kpi(num((status?.sent ?? 0) + (status?.personal?.sent ?? 0)), 'اعلان ارسال‌شده', `${num(status?.personal?.sent ?? 0)} اعلان شخصی`),
     kpi(checkedAt ? relativeTime(checkedAt) : '—', 'آخرین بررسی', status?.reason === 'manual' ? 'بررسی دستی' : 'بررسی خودکار', tone),
   ].join('');
 
-  $('health-note').textContent = accounts.length ? `${fa(healthy)} از ${fa(accounts.length)} سالم` : '';
+  $('health-note').textContent = accounts.length ? `${num(healthy)} از ${num(accounts.length)} سالم` : '';
   $('health-list').innerHTML = accounts.length
     ? accounts.map(account => {
       const health = account.health ?? {};
@@ -218,7 +245,7 @@ function renderOverview() {
         <div class="row-top">
           <div>
             <p class="row-title"><span class="health-dot ${tone2}" aria-hidden="true"></span>${escapeHtml(account.label || account.id)}</p>
-            <p class="row-sub">${account.mode === 'session' ? 'کوکی نشست' : 'توکن دانشگاه'}${account.enabled ? '' : ' · غیرفعال'} · ${fa(health.courses ?? 0)} درس</p>
+            <p class="row-sub">${account.mode === 'session' ? 'کوکی نشست' : 'توکن دانشگاه'}${account.enabled ? '' : ' · غیرفعال'} · ${num(health.courses ?? 0)} درس</p>
             <p class="row-sub">آخرین بررسی ${escapeHtml(relativeTime(health.at))}</p>
           </div>
           <span class="badge ${tone2}">${escapeHtml(STATES[health.state] ?? 'نامشخص')}</span>
@@ -235,7 +262,7 @@ function renderOverview() {
 
   const pending = data.pendingDigests ?? [];
   $('digests').innerHTML = pending.length
-    ? `<div class="notice warn" style="margin-top:10px"><b>${fa(pending.length)} نمای اولیه در انتظار انتشار</b>
+    ? `<div class="notice warn" style="margin-top:10px"><b>${num(pending.length)} نمای اولیه در انتظار انتشار</b>
         برای ارسال نخستین معرفی درس‌ها، در چت <code>/digest</code> را بزنید.</div>`
     : '';
 
@@ -255,7 +282,7 @@ function accountCard(account) {
       <div>
         <p class="row-title"><span class="health-dot ${tone}" aria-hidden="true"></span>${escapeHtml(account.label || account.id)}
           ${account.enabled ? '' : '<span class="badge">غیرفعال</span>'}</p>
-        <p class="row-sub">${account.mode === 'session' ? 'کوکی نشست' : 'توکن دانشگاه'}${Number.isFinite(Number(health.courses)) ? ` · ${fa(health.courses)} درس` : ''} · آخرین بررسی ${escapeHtml(when)}</p>
+        <p class="row-sub">${account.mode === 'session' ? 'کوکی نشست' : 'توکن دانشگاه'}${Number.isFinite(Number(health.courses)) ? ` · ${num(health.courses)} درس` : ''} · آخرین بررسی ${escapeHtml(when)}</p>
         ${state.owner ? `<p class="row-sub">صاحب حساب ${escapeHtml(account.ownerId)}</p>` : ''}
         ${account.hasCredential ? '' : '<p class="row-sub">فاقد اعتبار اتصال؛ مقدار تازه ذخیره کنید.</p>'}
       </div>
@@ -277,7 +304,7 @@ function renderAccounts() {
   if (!accounts.length) {
     accountsEmpty.innerHTML = '<div class="notice"><b>هنوز اتصالی ثبت نشده است</b>با ثبت مقدار MoodleSession، درس‌های آن حساب به پوشش ربات اضافه می‌شود.</div>';
   }
-  $('nav-connections-count').textContent = accounts.length ? fa(accounts.length) : '';
+  $('nav-connections-count').textContent = accounts.length ? num(accounts.length) : '';
   restoreFocus(keepFocus);
 }
 
@@ -341,14 +368,14 @@ function renderDirectory() {
   const query = state.query.trim().toLowerCase();
   const courses = (directory.courses ?? []).filter(course =>
     !query || `${course.name ?? ''} ${course.binding?.professor ?? ''} ${course.binding?.professorName ?? ''}`.toLowerCase().includes(query));
-  $('course-count').textContent = `${fa(directory.courses?.length ?? 0)} درس`;
-  courseSearchCount.textContent = query ? `${fa(courses.length)} نتیجه` : '';
+  $('course-count').textContent = `${num(directory.courses?.length ?? 0)} درس`;
+  courseSearchCount.textContent = query ? `${num(courses.length)} نتیجه` : '';
   const keepFocus = focusKey(document.activeElement);
   classList.innerHTML = courses.length ? courses.map(courseRow).join('')
     : '<div class="notice">درسی با این عبارت پیدا نشد.</div>';
   restoreFocus(keepFocus);
   const professors = directory.professors ?? [];
-  $('prof-count').textContent = professors.length ? `${fa(professors.length)} استاد` : '';
+  $('prof-count').textContent = professors.length ? `${num(professors.length)} استاد` : '';
   $('professors').innerHTML = professors.length
     ? professors.slice(0, 60).map(professor => `<span class="chip">${escapeHtml(professor.name)}</span>`).join('')
     : '<p class="muted">هنوز استادی ثبت نشده است.</p>';
@@ -361,7 +388,7 @@ function traitRow(trait) {
   return `<div class="trait" data-trait="${escapeHtml(trait.key)}">
     <div class="trait-head">
       <label for="trait-${trait.key}">${escapeHtml(trait.label)}</label>
-      <span class="trait-value" id="trait-value-${trait.key}">${value === null ? 'پیش‌فرض' : fa(value)}</span>
+      <span class="trait-value" id="trait-value-${trait.key}">${value === null ? 'پیش‌فرض' : num(value)}</span>
     </div>
     <div class="trait-row">
       <input type="range" id="trait-${trait.key}" min="0" max="10" step="1" value="${slider}"
@@ -399,7 +426,7 @@ function renderAi() {
   $('ai-model').value = ai.config.model ?? '';
   $('ai-daily-user').value = ai.config.dailyUser ?? '';
   $('ai-daily-global').value = ai.config.dailyGlobal ?? '';
-  $('ai-media-badge').textContent = `${fa(ai.media.count)} از ${fa(ai.media.max)}`;
+  $('ai-media-badge').textContent = `${num(ai.media.count)} از ${num(ai.media.max)}`;
   $('ai-disclosure').textContent = ai.disclosure;
   renderTraits();
 }
@@ -462,7 +489,7 @@ async function load({ quiet = false } = {}) {
     renderOverview();
     renderAccounts();
     const healthy = (data.accounts ?? []).filter(account => account.health?.state === 'ok').length;
-    healthEl.textContent = data.accounts?.length ? `${fa(healthy)}/${fa(data.accounts.length)} سالم` : 'بدون اتصال';
+    healthEl.textContent = data.accounts?.length ? `${num(healthy)}/${num(data.accounts.length)} سالم` : 'بدون اتصال';
     healthEl.className = `badge ${data.accounts?.length ? (healthy === data.accounts.length ? 'ok' : 'warn') : 'warn'}`;
     shellError.hidden = true;
 
@@ -541,12 +568,12 @@ async function handleCourseAction(button) {
       state.directory = data;
       renderDirectory();
       renderOverview();
-      say(`تنظیم درس #${fa(courseId)} حذف شد.`);
+      say(`تنظیم درس #${num(courseId)} حذف شد.`);
     } else {
       await call('directory', { action: 'set', courseId, label: value('label'), slots: value('slots'), source: 'manual' });
       state.directory = await call('directory', { action: 'list' });
       renderDirectory();
-      say(`تنظیم درس #${fa(courseId)} ذخیره شد.`);
+      say(`تنظیم درس #${num(courseId)} ذخیره شد.`);
     }
   } catch (error) {
     out.textContent = error.message;
@@ -592,6 +619,12 @@ document.addEventListener('click', async event => {
   if (button) {
     const act = button.dataset.act;
     app?.HapticFeedback?.selectionChanged?.();
+    if (act === 'theme') {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      setTheme(next);
+      say(next === 'dark' ? 'حالت تاریک فعال شد.' : 'حالت روشن فعال شد.');
+      return;
+    }
     if (act === 'panel') { switchPanel(button.dataset.panel); return; }
     if (act === 'reload') { await load(); say('وضعیت به‌روز شد.'); return; }
     if (act === 'check') {
@@ -600,7 +633,7 @@ document.addEventListener('click', async event => {
       try {
         const result = await call('check', {});
         await load({ quiet: true });
-        say(result.busy ? 'بررسی دیگری در حال اجراست.' : `${fa(result.courses ?? 0)} درس بررسی شد؛ ${fa(result.sent ?? 0)} اعلان گروهی و ${fa(result.personal?.sent ?? 0)} اعلان شخصی ارسال شد.`);
+        say(result.busy ? 'بررسی دیگری در حال اجراست.' : `${num(result.courses ?? 0)} درس بررسی شد؛ ${num(result.sent ?? 0)} اعلان گروهی و ${num(result.personal?.sent ?? 0)} اعلان شخصی ارسال شد.`);
       } catch (error) {
         say(error.message, 'err');
       } finally {
@@ -648,7 +681,7 @@ document.addEventListener('click', async event => {
   if (event.target.matches('input[type="range"]')) {
     const key = event.target.id.replace('trait-', '');
     const output = $(`trait-value-${key}`);
-    if (output) output.textContent = fa(event.target.value);
+    if (output) output.textContent = num(event.target.value);
   }
 });
 
@@ -656,7 +689,7 @@ document.addEventListener('input', event => {
   if (event.target.matches('input[type="range"]')) {
     const key = event.target.id.replace('trait-', '');
     const output = $(`trait-value-${key}`);
-    if (output) output.textContent = fa(event.target.value);
+    if (output) output.textContent = num(event.target.value);
     return;
   }
   if (event.target === courseSearch) {
@@ -685,8 +718,7 @@ form.addEventListener('submit', async event => {
   const secret = secretInput.value.trim();
   const valid = secret.length >= 10 && secret.length <= 256;
   secretInput.setAttribute('aria-invalid', String(!valid));
-  secretError.hidden = valid;
-  secretError.textContent = valid ? '' : 'مقدار MoodleSession را کامل وارد کنید (حداقل ۱۰ نویسه).';
+  secretError.hidden = valid;    secretError.textContent = valid ? '' : 'مقدار MoodleSession را کامل وارد کنید (حداقل 10 نویسه).';
   if (!valid) { secretInput.focus(); return; }
 
   saveButton.disabled = true;
@@ -699,7 +731,7 @@ form.addEventListener('submit', async event => {
     state.renewingId = null;
     updateFormMode();
     await load({ quiet: true });
-    say(`اتصال برقرار شد؛ ${fa(data.courses ?? 0)} درس قابل مشاهده است. نخستین بررسی هر درس، محتوای موجود را بدون ارسال اعلان ثبت می‌کند.`);
+    say(`اتصال برقرار شد؛ ${num(data.courses ?? 0)} درس قابل مشاهده است. نخستین بررسی هر درس، محتوای موجود را بدون ارسال اعلان ثبت می‌کند.`);
     switchPanel('overview');
   } catch (error) {
     say(error.message, 'err');
@@ -728,7 +760,6 @@ confirmDialog.addEventListener('cancel', event => { event.preventDefault(); conf
 
 /* --------------------------------------------------------------------- init */
 applyTheme();
-app?.onEvent?.('themeChanged', applyTheme);
 app?.ready?.();
 app?.expand?.();
 app?.disableVerticalSwipes?.();

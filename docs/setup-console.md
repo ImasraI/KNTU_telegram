@@ -75,3 +75,8 @@ npm run build && npm run preview
 
 Change `scripts/preview-mock.mjs` to reproduce a contributor view (set
 `accounts.owner = false` and drop the directory) or an expired session.
+
+The claims above are not just prose: `tests/ui.test.mjs` opens every panel in
+Chromium at 360px and 1024px and fails on axe WCAG 2.1 A/AA violations, missing or
+unlinked tabs, unnamed controls, targets under 40px or horizontal overflow. Run it
+alone with `npm run test:ui`.

@@ -1,0 +1,61 @@
+name: UI contract
+
+# The accessibility and layout promises (labels, tab wiring, no sideways scroll
+# at phone width, 40px targets, axe WCAG 2.1 A/AA) are checked in a real browser
+# on every change to a shipped surface, not by hand.
+on:
+  push:
+    paths:
+      - 'web/**'
+      - 'setup/**'
+      - 'personal/public/**'
+      - 'scripts/preview-mock.mjs'
+      - 'scripts/build-frontend.mjs'
+      - 'tests/ui.test.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ui.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+      - 'setup/**'
+      - 'personal/public/**'
+      - 'scripts/preview-mock.mjs'
+      - 'scripts/build-frontend.mjs'
+      - 'tests/ui.test.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The test fails with an install hint when this step is missing; it never
+      # skips itself, so a green run means a browser really rendered the pages.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the UI contract
+        run: node --test tests/ui.test.mjs

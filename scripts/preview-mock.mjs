@@ -1,11 +1,17 @@
-// Temporary local harness: serves dist/ and swaps telegram-web-app.js for a mock
-// client with fixture data, so both surfaces can be inspected in a browser.
-// Not part of the shipped build; deleted after the visual check.
+// Local harness: serves dist/ and swaps telegram-web-app.js for a mock client
+// with fixture data, so both surfaces can be inspected in a browser and driven
+// by tests/ui.test.mjs. Not part of the shipped build.
+//
+//   npm run preview                      # http://127.0.0.1:5199
+//   import { startPreview } ...          # ephemeral port for the UI test
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('../dist/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+// The built static folder. `startPreview({ root })` can point at a private copy
+// (the UI test builds its own so it never races dist/ with the other tests).
+const defaultRoot = fileURLToPath(new URL('../dist/', import.meta.url));
 const now = Date.now();
 const iso = ms => new Date(ms).toISOString();
 
@@ -172,29 +178,46 @@ window.Telegram = { WebApp: {
 const pages = new Map([['/', 'index.html'], ['/setup/', 'setup/index.html']]);
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
 
-const server = createServer(async (request, response) => {
-  const url = new URL(request.url, 'http://localhost');
-  try {
-    if (url.pathname === '/__calls') {
-      response.writeHead(200, { 'Content-Type': 'application/json' });
-      response.end(JSON.stringify(globalThis.__calls ?? []));
-      return;
-    }
-    const page = pages.get(url.pathname) ?? (url.pathname === '' ? 'index.html' : null);
-    const file = page ?? url.pathname.replace(/^\//, '');
-    let body;
-    if (page) {
-      body = (await readFile(join(root, page), 'utf8')).replace('<script src="https://telegram.org/js/telegram-web-app.js"></script>', injected);
-    } else {
-      body = await readFile(join(root, normalize(file)));
-    }
-    const type = types[extname(page ?? file)] ?? 'application/octet-stream';
-    response.writeHead(200, { 'Content-Type': type });
-    response.end(body);
-  } catch {
-    response.writeHead(404, { 'Content-Type': 'text/plain' });
-    response.end('not found');
-  }
-});
+function handlerFor(root) {
+  return (request, response) => {
+    const url = new URL(request.url, 'http://localhost');
+    void (async () => {
+      try {
+        const page = pages.get(url.pathname) ?? (url.pathname === '' ? 'index.html' : null);
+        const file = page ?? url.pathname.replace(/^\//, '');
+        let body;
+        if (page) {
+          body = (await readFile(join(root, page), 'utf8')).replace('<script src="https://telegram.org/js/telegram-web-app.js"></script>', injected);
+        } else {
+          body = await readFile(join(root, normalize(file)));
+        }
+        const type = types[extname(page ?? file)] ?? 'application/octet-stream';
+        response.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+        response.end(body);
+      } catch {
+        response.writeHead(404, { 'Content-Type': 'text/plain' });
+        response.end('not found');
+      }
+    })();
+  };
+}
 
-server.listen(5199, '127.0.0.1', () => console.log('preview on http://127.0.0.1:5199'));
+// Resolves to { url, close } on an ephemeral port, so tests never fight over 5199.
+export function startPreview({ port = 0, root = defaultRoot } = {}) {
+  const server = createServer(handlerFor(root));
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', () => {
+      const address = server.address();
+      resolve({
+        url: `http://127.0.0.1:${address.port}`,
+        close: () => new Promise(done => server.close(done)),
+      });
+    });
+  });
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === normalize(process.argv[1])) {
+  const { url } = await startPreview({ port: 5199 });
+  console.log(`preview on ${url}`);
+}

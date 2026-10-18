@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark light">
 <meta name="robots" content="noindex">
 <meta name="referrer" content="no-referrer">
 <title>کنسول مدیریت — ربات خواجه نصیر</title>
@@ -16,7 +16,7 @@
 
 <header class="shell-top">
   <span class="brand" aria-hidden="true">
-    <svg viewBox="0 0 24 24"><path d="M12 3 2.5 8 12 13l9.5-5Zm-7 7.6V16c0 2.2 3.1 4 7 4s7-1.8 7-4v-5.4L12 14Z"/></svg>
+    <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12.02,3.12 15.68,1.01 19.87,3.42 20.02,3.69 20.02,7.49 23.70,9.61 23.70,14.15 23.56,14.40 20.27,16.30 20.13,16.54 20.13,20.48 15.84,22.95 12.05,20.76 8.18,23.00 3.86,20.50 3.86,16.63 3.66,16.30 0.50,14.47 0.30,14.12 0.30,9.87 0.47,9.57 3.98,7.55 3.98,3.54 8.36,1.00ZM13.26,3.83 15.61,5.18 17.97,3.82 15.62,2.47ZM6.02,3.84 8.37,5.20 10.73,3.84 8.38,2.48ZM8.85,6.31 8.85,10.23 5.23,12.32 5.11,12.53 5.11,15.38 5.34,15.78 8.21,17.43 11.90,15.30 12.14,15.30 15.79,17.41 18.68,15.74 18.89,15.38 18.89,12.49 18.77,12.29 15.24,10.25 15.12,10.05 15.12,6.40 15.00,6.19 12.03,4.48ZM16.39,6.16 16.39,8.64 16.49,8.81 18.78,7.49 18.78,4.77ZM5.29,7.52 7.54,8.82 7.67,8.58 7.67,6.18 5.29,4.81ZM17.06,9.92 19.41,11.27 21.77,9.91 19.42,8.56ZM2.23,9.96 4.57,11.32 6.93,9.96 4.58,8.60ZM20.11,12.25 20.11,14.75 20.20,14.91 22.51,13.58 22.51,10.87ZM1.49,13.64 3.74,14.94 3.87,14.70 3.87,12.30 1.49,10.93ZM16.51,18.46 16.51,20.94 16.61,21.12 18.91,19.79 18.91,17.08ZM12.86,19.83 15.10,21.12 15.24,20.88 15.24,18.48 12.86,17.11ZM5.19,19.85 7.43,21.15 7.57,20.91 7.57,18.51 5.19,17.14ZM8.73,18.51 8.73,20.99 8.83,21.16 11.13,19.84 11.13,17.12Z"/></svg>
   </span>
   <div class="shell-top-text">
     <h1>کنسول مدیریت و همکاری</h1>
@@ -24,6 +24,9 @@
   </div>
   <div class="shell-actions">
     <span class="badge" id="health" aria-live="polite">—</span>
+    <button class="iconbtn" type="button" data-act="theme" aria-label="تغییر به حالت روشن" title="حالت روشن">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-1-6h2v3h-2Zm0 17h2v3h-2ZM2 11h3v2H2Zm17 0h3v2h-3ZM4.9 6.3l1.4-1.4 2.2 2.2-1.4 1.4Zm10.6 10.6 1.4-1.4 2.2 2.2-1.4 1.4ZM4.9 17.7l2.2-2.2 1.4 1.4-2.2 2.2Zm10.6-10.6 2.2-2.2 1.4 1.4-2.2 2.2Z"/></svg>
+    </button>
     <button class="iconbtn" type="button" data-act="reload" aria-label="بارگذاری دوباره" title="بارگذاری دوباره">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z"/></svg>
     </button>
@@ -233,7 +236,7 @@
         </section>
 
         <section class="card" aria-labelledby="ai-persona-title">
-          <div class="section-head"><h2 id="ai-persona-title">شخصیت</h2><span class="muted">۰ تا ۱۰</span></div>
+          <div class="section-head"><h2 id="ai-persona-title">شخصیت</h2><span class="muted">0 تا 10</span></div>
           <p class="muted">هر ویژگی با ذخیره‌شدن، از همان لحظه در پاسخ‌ها اثر می‌گذارد.</p>
           <div id="ai-traits" class="traits"></div>
         </section>

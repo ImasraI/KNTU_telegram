@@ -3,10 +3,13 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "@tgcloud/cli": "^0.2.0"
+    "@tgcloud/cli": "^0.2.0",
+    "axe-core": "^4.14.0",
+    "playwright": "^1.64.1"
   },
   "scripts": {
     "test": "node --test",
+    "test:ui": "node --test tests/ui.test.mjs",
     "build": "node scripts/build-frontend.mjs",
     "preview": "node scripts/preview-mock.mjs",
     "deploy": "node scripts/prepare-database.mjs && npm run build && tgcloud push",

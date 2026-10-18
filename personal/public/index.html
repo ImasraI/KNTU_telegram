@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark light">
 <meta name="robots" content="noindex">
 <title>حساب شخصی — ربات خواجه نصیر</title>
 <link rel="stylesheet" href="/theme.css">
@@ -15,6 +15,7 @@
   <div class="topbar-text"><span class="topbar-title">حساب شخصی دانشگاه</span>
     <span class="freshness" id="freshness"><span class="dot"></span><span class="freshness-text" id="freshness-text">در حال بارگذاری…</span></span>
   </div>
+  <button id="theme" class="iconbtn" type="button" data-act="theme" aria-label="تغییر به حالت روشن" title="حالت روشن"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-1-6h2v3h-2Zm0 17h2v3h-2ZM2 11h3v2H2Zm17 0h3v2h-3ZM4.9 6.3l1.4-1.4 2.2 2.2-1.4 1.4Zm10.6 10.6 1.4-1.4 2.2 2.2-1.4 1.4ZM4.9 17.7l2.2-2.2 1.4 1.4-2.2 2.2Zm10.6-10.6 2.2-2.2 1.4 1.4-2.2 2.2Z"/></svg></button>
   <button id="reload" class="iconbtn" type="button" aria-label="تازه‌سازی وضعیت"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z"/></svg></button>
 </header>
 <main class="view" id="view" tabindex="-1">
@@ -26,10 +27,10 @@
       <div class="stat-row"><div class="stat"><b id="course-count">—</b><span>درس من</span></div><div class="stat"><b id="assignment-count">—</b><span>تکلیف ثبت‌شده</span></div><div class="stat"><b id="quiz-count">—</b><span>آزمون ثبت‌شده</span></div></div>
       <button id="refresh" class="btn" type="button" disabled>همگام‌سازی حساب من</button>
       <button id="start-connect" class="btn" type="button" data-tab="account" hidden>اتصال حساب دانشگاهی</button>
-      <span id="sync-hint" class="muted">در حال دریافت وضعیت حساب…</span>
+      <button id="share-courses" type="button" class="btn" hidden>افزودن درس‌های من به /classes و اعلان‌های کانال</button><span id="sync-hint" class="muted">در حال دریافت وضعیت حساب…</span>
     </div>
     <div class="section"><div class="section-head"><h2>فعالیت‌های درس‌ها</h2><button class="linkbtn" type="button" data-tab="activity">مشاهده همه</button></div><div id="recent" class="card"></div></div>
-    <div class="notice section privacy-note"><span class="privacy-dot" aria-hidden="true"></span><div><b>فقط برای خودتان</b><p>اطلاعات این حساب در گروه یا فهرست عمومی ربات نمایش داده نمی‌شود.</p></div></div>
+    <div class="notice section privacy-note"><span class="privacy-dot" aria-hidden="true"></span><div><b id="sharing-title">وضعیت پوشش عمومی</b><p id="sharing-description">در حال بررسی…</p></div></div>
   </section>
   <section data-view="courses" aria-labelledby="courses-title" hidden>
     <div class="section-head"><h1 id="courses-title">درس‌های من</h1><span id="courses-total" class="chip">—</span></div>
@@ -44,16 +45,16 @@
     <div class="section-head"><h1 id="account-title">حساب و حریم خصوصی</h1><span class="chip accent">شخصی</span></div>
     <div id="account-summary" class="card" hidden><div class="section-head"><h2>اتصال دانشگاه</h2><span id="account-state" class="chip"></span></div><dl class="account-details"><div><dt>ورود مجدد خودکار</dt><dd id="renewal-state">—</dd></div><div><dt>آخرین همگام‌سازی</dt><dd id="last-sync">—</dd></div></dl><button id="reconnect" type="button" class="btn ghost">ورود دوباره یا تغییر تنظیمات</button></div>
     <div id="login-card" class="card section">
-      <h2>اتصال حساب دانشگاهی</h2><p class="muted section-intro">با همان نام کاربری و رمز حساب دانشگاهی وارد شوید. اتصال اختیاری است.</p>
+      <h2>اتصال حساب دانشگاهی</h2><p class="muted section-intro">با همان نام کاربری و رمز حساب دانشگاهی وارد شوید. پیش از اتصال، توضیح ذخیرهٔ رمز و اشتراک پوشش را بخوانید.</p>
       <form id="connect">
         <label class="field" for="username"><span>نام کاربری دانشگاه</span><input class="input" id="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="150" required placeholder="نام کاربری حساب دانشگاهی"></label>
         <label class="field" for="password"><span>رمز ورود</span><span class="password-field"><input class="input" id="password" type="password" autocomplete="current-password" maxlength="512" required placeholder="رمز حساب دانشگاهی"><button class="password-toggle" id="toggle-password" type="button" aria-label="نمایش رمز" aria-pressed="false">نمایش</button></span></label>
-        <label class="renewal-option" for="remember"><span><b>ورود مجدد خودکار</b><small>با اجازه شما، رمز برای تازه‌سازی اتصال ذخیره می‌شود.</small></span><input id="remember" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
-        <p class="muted form-note">این گزینه اختیاری و پیش‌فرض خاموش است. بدون آن، پس از انقضای اتصال باید دوباره وارد شوید.</p>
+        <p class="muted form-note">با ورود، درس‌ها، تکالیف و اطلاعات کلاس به فهرست مشترک ربات اضافه می‌شوند. نام کاربری و رمز فقط به‌صورت رمزنگاری‌شده برای تمدید اتصال نگهداری می‌شوند. نمره و فهرست دانشجویان عمومی نمی‌شوند.</p><input id="remember" type="hidden" value="true">
+        <p class="muted form-note">با قطع اتصال، اطلاعات ورود حذف و استفاده از این حساب برای دریافت داده متوقف می‌شود. اطلاعات درسی که پیش‌تر عمومی شده‌اند ممکن است برای پوشش مشترک باقی بمانند.</p>
         <button class="btn" id="connect-button" type="submit">ورود و اتصال شخصی</button>
       </form>
     </div>
-    <details class="card section"><summary>حریم خصوصی و راهنمای اتصال</summary><div class="details-body"><p>رمز را فقط در همین فرم وارد کنید، نه در چت تلگرام. ورود از طریق حساب دانشگاهی انجام می‌شود.</p><p>نشست و در صورت انتخاب شما رمز، به‌صورت رمزنگاری‌شده نگهداری می‌شوند. داده این اتصال با حساب‌های همکاری و گروه‌ها مشترک نیست.</p><p>پس از اتصال یک دقیقه صبر کنید و همگام‌سازی را بزنید. نخستین دریافت هر درس بی‌صداست؛ تغییرات بعدی در پیوی شما ارسال می‌شوند.</p><p>قطع اتصال، اطلاعات ورود و کش شخصی را حذف می‌کند. برای لغو نشست دانشگاه، از تنظیمات خود دانشگاه اقدام کنید.</p></div></details>
+    <details class="card section"><summary>حریم خصوصی و راهنمای اتصال</summary><div class="details-body"><p>رمز را فقط در همین فرم وارد کنید، نه در چت تلگرام. ورود از طریق حساب دانشگاهی انجام می‌شود.</p><p>نشست و رمز برای تمدید خودکار، به‌صورت رمزنگاری‌شده نگهداری می‌شوند. پوشش درس‌ها و فعالیت‌های همهٔ حساب‌های متصل مشترک است؛ رمز، کوکی و فهرست دانشجویان عمومی نیست.</p><p>پس از اتصال یک دقیقه صبر کنید و همگام‌سازی را بزنید. نخستین دریافت هر درس بی‌صداست؛ تغییرات بعدی در پیوی شما ارسال می‌شوند.</p><p>قطع اتصال، اطلاعات ورود و کش شخصی را حذف می‌کند. برای لغو نشست دانشگاه، از تنظیمات خود دانشگاه اقدام کنید.</p></div></details>
     <div id="disconnect-card" class="section" hidden><button id="disconnect" class="btn danger" type="button">قطع اتصال و حذف اطلاعات شخصی</button></div>
   </section>
 </main>
